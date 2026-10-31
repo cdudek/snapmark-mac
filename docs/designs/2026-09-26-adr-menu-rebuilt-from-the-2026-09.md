@@ -11,8 +11,6 @@ tags: [ux]
 migrated_from: docs/ux/decisions.md
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # Menu rebuilt from the 2026-09-26 menu audit
 
 | Date       | Decision                                                                                                                                                                                                                                         | Answer (quoted)          | By whom   |

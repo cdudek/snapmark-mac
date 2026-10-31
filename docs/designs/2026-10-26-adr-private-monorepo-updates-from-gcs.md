@@ -10,8 +10,6 @@ amended_by: []
 tags: [repo, release, updates]
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # One private monorepo; installed copies update from a public Cloud Storage bucket
 
 ## Context

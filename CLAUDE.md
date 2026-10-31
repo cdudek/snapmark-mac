@@ -1,10 +1,10 @@
 # kingfish
 
-## Strategy lives in heydiff-context
+## Strategy lives in snapmark-context
 
-Market research, pricing, competitors, roadmap, the online-service decisions and the design-system pointers live in [pokbytes/heydiff-context](https://github.com/pokbytes/heydiff-context), checked out next to this repo at `~/projects/heydiff/heydiff-context`. The product is HeyDiff (called Snapmark until 2026-10-28); the Mac app's code, ids, update feed and the `snapmark-app/` folder keep the old name until the Mac app's new-ids change ships. Read it before any product, pricing or scope decision; write such decisions there, not here.
+Market research, pricing, competitors, roadmap, the online-service decisions and the design-system pointers live in [pokbytes/snapmark-context](https://github.com/pokbytes/snapmark-context), checked out next to this repo at `~/projects/snapmark/snapmark-context`. Read it before any product, pricing or scope decision; write such decisions there, not here.
 
-@~/projects/heydiff/heydiff-context/CLAUDE.md
+@~/projects/snapmark/snapmark-context/CLAUDE.md
 
 ## How work moves: the SDLC
 

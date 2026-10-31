@@ -3,23 +3,20 @@ type: design
 status: draft
 created: 2026-10-27
 author: Calvin Dudek
-project: HeyDiff
+project: Snapmark online
 supersedes: none
 ---
 
-# HeyDiff: design
+# Snapmark online: design
 
-_Renamed 2026-10-28: written as "Snapmark online"; the product is HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). The file name keeps its original words so links keep working._
+**Short version.** Snapmark online lets a team give exact feedback on real, running UI, decide between alternatives, and hand the result to coding agents, with a paper trail of every decision. One account, many organisations; one paid plan per seat; the Chrome extension, the Mac app, a web app and an MCP server all work on the same feedback. Built as a long-lived product: Next.js, Tailwind, HeroUI and Motion on Cloud Run, Postgres on Cloud SQL, tokens from the owner's design system, i18n and a glossary from the first commit.
 
-**Short version.** HeyDiff lets a team give exact feedback on real, running UI, decide between alternatives, and hand the result to coding agents, with a paper trail of every decision. One account, many organisations; one paid plan per seat; the Chrome extension, the Mac app, a web app and an MCP server all work on the same feedback. Built as a long-lived product: Next.js, Tailwind, HeroUI and Motion on Cloud Run, Postgres on Cloud SQL, tokens from the owner's design system, i18n and a glossary from the first commit.
-
-Strategy, pricing and the decision log live in `pokbytes/heydiff-context` (`strategy/2026-10-27-snapmark-online.md`, section 9; `audience/personas.md`). This document is the product and technical design. Where it says **owner**, the owner decided it in conversation on 2026-10-27; where it says **Claude's call**, the builder may revisit it with a reason.
+Strategy, pricing and the decision log live in `pokbytes/snapmark-context` (`strategy/2026-10-27-snapmark-online.md`, section 9; `audience/personas.md`). This document is the product and technical design. Where it says **owner**, the owner decided it in conversation on 2026-10-27; where it says **Claude's call**, the builder may revisit it with a reason.
 
 ## 1. Intent
 
-- **Positioning (owner, 2026-10-28):** "HeyDiff turns team feedback into agent-ready software changes." It replaces the line below.
-- **Why (owner, 2026-10-27):** Snapmark turns agentic engineering and software factories from a single-player into a multiplayer game. It gives exact tools for exact feedback and leaves a paper trail of decisions.
-- **For (owner):** primary audiences are product teams building with coding agents, and founders and solo builders; secondary are agencies and freelancers, QA and design QA specialists, and engineer-led agentic teams. When a choice serves the primary and hurts a secondary audience, the primary wins. Details: `heydiff-context/audience/audiences.md`, `jobs-to-be-done.md`, `personas.md`.
+- **Why (owner):** Snapmark turns agentic engineering and software factories from a single-player into a multiplayer game. It gives exact tools for exact feedback and leaves a paper trail of decisions.
+- **For (owner):** primary audiences are product teams building with coding agents, and founders and solo builders; secondary are agencies and freelancers, QA and design QA specialists, and engineer-led agentic teams. When a choice serves the primary and hurts a secondary audience, the primary wins. Details: `snapmark-context/audience/audiences.md`, `jobs-to-be-done.md`, `personas.md`.
 - **Lasting (owner):** not a disposable app. Clear reusable tokens, no inline or ad-hoc styling, a glossary, i18n from the start, structure that supports change and maintenance.
 - **Feel (owner):** simple, effective, calm, productive.
 
@@ -80,7 +77,7 @@ These words are the product's vocabulary: UI text, API names, table names and do
 | **Review**           | Approve, Request changes or Comment, on a version.                                                                                           |
 | **Decision request** | Asks named people to vote between versions, optionally by a date.                                                                            |
 | **Copilot**          | The coding agent acting for a person through MCP, shown as "Ben via Claude". Not a member.                                                   |
-| **Operator**         | HeyDiff staff using the operator area. Not an organisation role; "admin" always means an organisation's admin.                               |
+| **Operator**         | Snapmark staff using the operator area. Not an organisation role; "admin" always means an organisation's admin.                              |
 | **Session**          | A Mac app session: a local folder of captures and `session.md`. Can be shared to a workspace.                                                |
 
 ## 4. Workflows
@@ -144,15 +141,15 @@ Feedback given on production v1.4 → fixed in PR #212 → accepted on its previ
 
 | Client                                    | Does                                                                                                                        |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Web app** (`heydiff-web`)               | Workspaces, feedback, threads, versions, reviews, decisions, settings, billing.                                             |
-| **Chrome extension** (`heydiff-chrome`)   | Picks an element or area on any page, captures it with anchor and version stamp, posts feedback. Works without the Mac app. |
+| **Web app** (`snapmark-web`)              | Workspaces, feedback, threads, versions, reviews, decisions, settings, billing.                                             |
+| **Chrome extension** (`snapmark-chrome`)  | Picks an element or area on any page, captures it with anchor and version stamp, posts feedback. Works without the Mac app. |
 | **Mac app** (`snapmark-app`, today's app) | Captures anything on screen; keeps sessions in two-way sync with a workspace; the **localhost bridge** for the extension.   |
 | **MCP server** (route of the web app)     | The copilot's door: list, read, ask, post versions, report implementations.                                                 |
 | **Dev package** (new, optional)           | Build plugin that stamps repo, `file:line`, region and module onto elements and writes the version stamp into the page.     |
 
 **Anchor and version, most reliable first:**
 
-1. **Dev package:** `data-heydiff-src="src/Card.tsx:42"`, `data-heydiff-repo`, `data-heydiff-module`, `data-heydiff-region` on elements in non-production builds; a `<meta name="heydiff">` with repo, commit, version and build time in every build. Microfrontends stamp their own repo, so one page assembled from several apps still resolves per element. React 19 removed the built-in source location, so the build plugin is the reliable way.
+1. **Dev package:** `data-snapmark-src="src/Card.tsx:42"`, `data-snapmark-repo`, `data-snapmark-module`, `data-snapmark-region` on elements in non-production builds; a `<meta name="snapmark">` with repo, commit, version and build time in every build. Microfrontends stamp their own repo, so one page assembled from several apps still resolves per element. React 19 removed the built-in source location, so the build plugin is the reliable way.
 2. **Mac app bridge (localhost):** the extension asks the Mac app via Chrome native messaging which process serves `localhost:<port>`; the app resolves its folder, repo, branch, worktree and commit. Limit: a dev server inside Docker reports the Docker proxy.
 3. **Workspace rules:** environment address patterns and route rules map the URL to environment and repo.
 4. **GitHub deployments:** match address and time to a deployment, commit and PR (previews from Vercel and similar report there).
@@ -177,7 +174,7 @@ Feedback given on production v1.4 → fixed in PR #212 → accepted on its previ
 | ------------ | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | **Public**   | Marketing, landing pages, blog      | Landing page with waitlist sign-up; blog later                                                   |
 | **App**      | Organisations, workspaces, feedback | Yes                                                                                              |
-| **Operator** | HeyDiff staff                       | Waitlist, beta invitations, organisations and users, seats granted by hand, feature flags, usage |
+| **Operator** | Snapmark staff                      | Waitlist, beta invitations, organisations and users, seats granted by hand, feature flags, usage |
 
 **Claude's calls:**
 
@@ -190,36 +187,36 @@ Feedback given on production v1.4 → fixed in PR #212 → accepted on its previ
 
 **One repo per app (owner, 2026-10-27; replaces the monorepo).** All repos live in the `pokbytes` GitHub organisation. Repo names follow the working name and change with the final product name.
 
-| Repo                 | Holds                                                                                                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `heydiff-context`    | Strategy, audiences, decisions, design-system pointers (exists)                                                                                                                 |
-| `heydiff-desktop`    | The Mac app (today's repo, moved to `pokbytes` and renamed on 2026-10-27, renamed `heydiff-desktop` on 2026-10-28; the empty `snapmark-chrome/` and `snapmark-web/` folders go) |
-| `heydiff-web`        | Next.js: public, app and operator areas, REST API, MCP server                                                                                                                   |
-| `heydiff-chrome`     | The Chrome extension (MV3)                                                                                                                                                      |
-| `heydiff-kit`        | Shared packages, published to GitHub Packages (private npm)                                                                                                                     |
-| `heydiff-dev-plugin` | The optional build plugin, published to public npm (later)                                                                                                                      |
+| Repo                  | Holds                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `snapmark-context`    | Strategy, audiences, decisions, design-system pointers (exists)                                                                        |
+| `snapmark-desktop`    | The Mac app (today's repo, moved to `pokbytes` and renamed on 2026-10-27; the empty `snapmark-chrome/` and `snapmark-web/` folders go) |
+| `snapmark-web`        | Next.js: public, app and operator areas, REST API, MCP server                                                                          |
+| `snapmark-chrome`     | The Chrome extension (MV3)                                                                                                             |
+| `snapmark-kit`        | Shared packages, published to GitHub Packages (private npm)                                                                            |
+| `snapmark-dev-plugin` | The optional build plugin, published to public npm (later)                                                                             |
 
-**`heydiff-kit` (Claude's call; the one place code shared across apps lives):**
+**`snapmark-kit` (Claude's call; the one place code shared across apps lives):**
 
 ```
-heydiff-kit/
+snapmark-kit/
 ├── packages/
 │   ├── contracts/     # zod schemas and types for every API and MCP payload
 │   ├── annotations/   # shape and anchor format (Mac app, extension, web)
 │   ├── redaction/     # secret and email detection (Mac app, extension)
 │   ├── tokens/        # design system → CSS variables, Tailwind theme, HeroUI theme
-│   └── ui/            # HeroUI wrappers and HeyDiff components (web, extension pop-up)
+│   └── ui/            # HeroUI wrappers and Snapmark components (web, extension pop-up)
 └── .changeset/        # one changeset per change → semver release per package
 ```
 
-**`heydiff-web` inside (Claude's call):**
+**`snapmark-web` inside (Claude's call):**
 
 ```
-heydiff-web/
+snapmark-web/
 ├── src/app/[locale]/
 │   ├── (public)/          # landing, waitlist, blog (MDX)
 │   ├── (app)/             # organisations, workspaces, feedback
-│   └── (operator)/        # HeyDiff staff: waitlist, invites, seats, flags
+│   └── (operator)/        # Snapmark staff: waitlist, invites, seats, flags
 ├── src/app/api/v1/        # REST API for extension, Mac app and integrations
 ├── src/app/mcp/           # MCP endpoint
 ├── src/features/<name>/   # one folder per feature: components, server actions, queries
@@ -236,9 +233,9 @@ heydiff-web/
 
 **Rules**
 
-- Shared code lives only in `heydiff-kit`; apps never copy from each other. Each app pins kit versions; Dependabot opens the bump PRs.
+- Shared code lives only in `snapmark-kit`; apps never copy from each other. Each app pins kit versions; Dependabot opens the bump PRs.
 - A change to `contracts` that breaks clients is a new API version (`/api/v2`), never an edit in place. The server supports the current and the previous version, because the extension and the Mac app update later than the server.
-- Each repo has its own CI, rulesets, semantic-release and `CLAUDE.md`, all importing `heydiff-context`.
+- Each repo has its own CI, rulesets, semantic-release and `CLAUDE.md`, all importing `snapmark-context`.
 - `src/domain` imports nothing that does I/O; `src/server/*` never imports from `src/app`.
 - Swappable services use the provider pattern: an interface (`base.ts`), a factory that picks the provider from settings (`factory.ts`), one file per provider. Mail providers: `console` (release 1, prints to the terminal) and `resend` (once the owner provides templates and a key) (owner).
 - Every permission check goes through the auth policy module; no route decides on its own.
@@ -314,7 +311,7 @@ The phone is for reacting, not creating: Inbox → open an item → screenshot o
 
 - **In-app Inbox** for everything that concerns your items.
 - **Email, sent at once,** for an @mention, a decision request or review request addressed to you, and an answer to your question. Daily email digest: opt-in.
-- **Slack in release 2 (owner):** each person chooses email or Slack DM for the immediate ones; a channel per workspace gets new feedback, decisions and accepted changes. Messages carry a screenshot preview and buttons: Approve, Request changes, Vote, Reply, Open. HeyDiff links unfurl with the screenshot. Discussion stays in HeyDiff (no two-way thread sync), so the paper trail lives in one place. Built behind the same provider pattern as mail.
+- **Slack in release 2 (owner):** each person chooses email or Slack DM for the immediate ones; a channel per workspace gets new feedback, decisions and accepted changes. Messages carry a screenshot preview and buttons: Approve, Request changes, Vote, Reply, Open. Snapmark links unfurl with the screenshot. Discussion stays in Snapmark (no two-way thread sync), so the paper trail lives in one place. Built behind the same provider pattern as mail.
 
 ## 10. AI safety (owner: strict)
 
@@ -330,8 +327,8 @@ Feedback text, written by members and by guests, ends up in coding agents. It is
 ## 11. UI system
 
 - **Stack (owner):** Next.js (App Router), Tailwind, HeroUI, Motion. TypeScript strict.
-- **Design system (owner):** the owner's `design-system-starter` (`system.tokens.json` plus a HeyDiff overlay, rules in `examples/snapmark.md`, to be renamed heydiff.md), adjusted for the web app.
-- **Tokens:** `heydiff-kit`'s `tokens` package turns the design system into CSS variables, Tailwind's theme and HeroUI's theme (colours, radius, typography, spacing, motion durations). Components use tokens only. A lint rule blocks raw colours and arbitrary values (`#fff`, `p-[13px]`, inline `style` for visual properties).
+- **Design system (owner):** the owner's `design-system-starter` (`system.tokens.json` plus a Snapmark overlay, rules in `examples/snapmark.md`), adjusted for the web app.
+- **Tokens:** `snapmark-kit`'s `tokens` package turns the design system into CSS variables, Tailwind's theme and HeroUI's theme (colours, radius, typography, spacing, motion durations). Components use tokens only. A lint rule blocks raw colours and arbitrary values (`#fff`, `p-[13px]`, inline `style` for visual properties).
 - **HeroUI (owner):** minimal styling on top of its base: colours, border radius and general theming, defined in tokens where needed.
 - **Calm (owner, from the Mac app's style):** system-like, brand blue `#2492FF` only on primary buttons, no blue outlines, one obvious next action per screen.
 - **Motion:** short, purposeful, from motion tokens; respects reduced motion.
@@ -347,15 +344,15 @@ Feedback text, written by members and by guests, ends up in coding agents. It is
 
 ## 13. Hosting and deploys
 
-- **Release 1 is local (owner):** Postgres in Docker Compose, the web app with `next dev`, background jobs inline through the Cloud Tasks shim, email to the terminal, the extension loaded unpacked, the Mac app from source. Only the captures bucket is real: Cloud Storage in `heydiff` (planned in `snapmark-ai`), created with Terraform, with a separate dev bucket. Secrets in a git-ignored `.env.local`, with `.env.example` committed.
+- **Release 1 is local (owner):** Postgres in Docker Compose, the web app with `next dev`, background jobs inline through the Cloud Tasks shim, email to the terminal, the extension loaded unpacked, the Mac app from source. Only the captures bucket is real: Cloud Storage in `snapmark-ai`, created with Terraform, with a separate dev bucket. Secrets in a git-ignored `.env.local`, with `.env.example` committed.
 - **Infrastructure as code (owner):** Terraform for everything in Google Cloud, starting with the bucket in release 1 and adding the rest in release 2. State in a Cloud Storage backend bucket.
-- **From release 2, where (owner):** Cloud Run with one warm instance (1 vCPU, 1 GB) and Cloud SQL Postgres Micro, europe-west3, project `heydiff` (decided as `snapmark-ai`; the new project `heydiff` replaced it with the rename on 2026-10-28). About $25 to $30 a month at list price before VAT, without any commitment discount (owner: no commitment for now; Cloud SQL Micro has none anyway).
+- **From release 2, where (owner):** Cloud Run with one warm instance (1 vCPU, 1 GB) and Cloud SQL Postgres Micro, europe-west3, project `snapmark-ai`. About $25 to $30 a month at list price before VAT, without any commitment discount (owner: no commitment for now; Cloud SQL Micro has none anyway).
 - **Zero-downtime deploys (owner):**
   1. GitHub Actions builds the container and authenticates to Google Cloud through Workload Identity Federation (no keys).
   2. Database migrations follow expand and contract: a release only adds (columns, tables); removals ship in a later release once no running version uses them. Old and new app versions can always run against the same schema.
   3. The new revision deploys with no traffic, must pass a startup and a health probe, then receives 100% of traffic. The old revision keeps serving until the switch.
   4. Rollback is routing traffic back to the previous revision with one command; migrations never block it because of step 2.
-- **Previews:** each PR deploys a tagged revision with its own address (`pr-<n>---…run.app`), no production traffic, against the shared staging database. HeyDiff uses its own previews to verify feedback.
+- **Previews:** each PR deploys a tagged revision with its own address (`pr-<n>---…run.app`), no production traffic, against the shared staging database. Snapmark uses its own previews to verify feedback.
 - **Environments:** local, preview, staging, production; production deploys from `main` only.
 - **Secrets:** Secret Manager; nothing in the repo.
 - **Domain:** to check whether Cloud Run domain mapping works in europe-west3; otherwise Firebase Hosting in front (not a load balancer at about $18 a month).
@@ -370,8 +367,8 @@ Feedback text, written by members and by guests, ends up in coding agents. It is
 4. **Specs first.** Every change has acceptance criteria written as tests before the code (the SDLC's facts).
 5. **Additive change.** Database migrations expand then contract; API changes add a version; nothing breaks a running client.
 6. **Errors are visible.** No swallowed errors; every failure is logged with context and shown to the user in plain words.
-7. **Decisions are written down:** ADRs in `docs/designs/`, product decisions in `heydiff-context`.
-8. **Dogfood:** HeyDiff is reviewed with HeyDiff from its first usable version.
+7. **Decisions are written down:** ADRs in `docs/designs/`, product decisions in `snapmark-context`.
+8. **Dogfood:** Snapmark is reviewed with Snapmark from its first usable version.
 
 ### 14.2 Key libraries (versions current on npm on 2026-10-27)
 
@@ -387,10 +384,10 @@ Feedback text, written by members and by guests, ends up in coding agents. It is
 | Extension           | WXT 0.21 (owner)                                                                                                                         |
 | Email               | React Email, Resend 6 (behind the mail provider interface)                                                                               |
 | Jobs                | `@google-cloud/tasks` 7 (owner: Cloud Tasks and Scheduler)                                                                               |
-| Drawing             | Fabric 7, the same renderer as the Mac app, from `heydiff-kit/annotations`                                                               |
+| Drawing             | Fabric 7, the same renderer as the Mac app, from `snapmark-kit/annotations`                                                              |
 | Logs and errors     | pino 10 with OpenTelemetry, Sentry 11, PostHog (EU)                                                                                      |
 | Tests               | Vitest 5, Playwright 1.64, MSW 3                                                                                                         |
-| Repo hygiene        | ESLint (flat config) and Prettier (owner, as in the desktop repo), dependency-cruiser 18, knip 6, Changesets 3 for `heydiff-kit`         |
+| Repo hygiene        | ESLint (flat config) and Prettier (owner, as in the desktop repo), dependency-cruiser 18, knip 6, Changesets 3 for `snapmark-kit`        |
 
 Versions are pinned through lockfiles; Dependabot proposes updates; GitHub Actions are pinned to commit SHAs.
 
@@ -398,7 +395,7 @@ Versions are pinned through lockfiles; Dependabot proposes updates; GitHub Actio
 
 - Formatting (Prettier check), lint, typecheck, unit and end-to-end tests, schema validation of contracts and fixtures.
 - **Tokens and i18n lint:** no raw colours, arbitrary values or visual inline styles; no literal UI text.
-- **Module boundaries** (dependency-cruiser): `src/domain` imports no I/O; `src/server` never imports `src/app`; apps never import each other, only `heydiff-kit`.
+- **Module boundaries** (dependency-cruiser): `src/domain` imports no I/O; `src/server` never imports `src/app`; apps never import each other, only `snapmark-kit`.
 - Later (not release 1): accessibility checks with axe, MCP evals (scripted agent runs against the tools), visual screenshot comparison.
 
 ## 15. Quality and operations
@@ -415,10 +412,10 @@ Versions are pinned through lockfiles; Dependabot proposes updates; GitHub Actio
 
 **Decided by the owner:** sections 1, the first release (closed, waitlist and beta invites, two-way Mac sync), 4.2 rule, 5 (multi-organisation, roles, plans, seats bought first, guests need no seat, entitlements, retention), 6 methods and automatic linking, one repo per app (8.1), background jobs on Cloud Tasks (8.5), the sidebar, feedback view, phone scope and notifications with Slack in release 2 (9), strict AI safety (10), the stack in 11, i18n and glossary in 12, hosting without commitment and zero-downtime deploys in 13, WXT, ESLint and Prettier, the release-1 CI checks (14.3), Beads as tracker, Resend behind a provider interface.
 
-**Claude's calls (revisit with a reason):** Better Auth, Drizzle, next-intl, Paddle, SSE for live updates, the `heydiff-kit` split, the MCP tool list, the details of the acceptance rule (4.2), GitHub read-only in the first release, domain joiners as guests, the session sync mechanics (7), the sitemap's first cut (9.3), the principles (14.1) and the remaining libraries (14.2), PostHog and Sentry, Firebase Hosting for the domain.
+**Claude's calls (revisit with a reason):** Better Auth, Drizzle, next-intl, Paddle, SSE for live updates, the `snapmark-kit` split, the MCP tool list, the details of the acceptance rule (4.2), GitHub read-only in the first release, domain joiners as guests, the session sync mechanics (7), the sitemap's first cut (9.3), the principles (14.1) and the remaining libraries (14.2), PostHog and Sentry, Firebase Hosting for the domain.
 
 **Open:**
 
-1. **Name and domain: answered 2026-10-28.** HeyDiff, at heydiff.com, bought by the owner the same day. Left open: where DNS for heydiff.com is hosted. (The concern stands: moving to a new address later invalidates extension tokens, sign-in callbacks and MCP links.)
+1. **Name and domain** (owner is brainstorming), before the first deploy: moving to a new address later invalidates extension tokens, sign-in callbacks and MCP links. Until then, "Snapmark" is the working name.
 2. **Linear:** not planned yet; the owner wants it bidirectional and more involved than creating tickets, to discuss as its own topic.
 3. The order of work inside the first release (agreed in the plan).

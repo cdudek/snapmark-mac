@@ -11,8 +11,6 @@ amends: [2026-10-25-adr-capture-bar-and-settings-window, 2026-10-25-adr-keys-fol
 tags: [ux, capture, recording, keys, session, ai-handoff]
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # Recording with key frames
 
 Accepted on 2026-10-26 with the plan of `changes/2026-10-26-picked-designs` (milestone 3). The full spec is that change's `spec/`: the states in `interaction.md`, the screens and words in `screens.md`.
