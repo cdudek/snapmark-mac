@@ -11,8 +11,6 @@ amends: [2026-10-25-adr-keys-follow-macos]
 tags: [ux, keys, menu, capture, settings]
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # Capture bar on ⌃⇧5, Settings as a window, Keyboard Shortcuts in its own file
 
 Accepted on 2026-10-25 with the plan of `changes/2026-10-25-finish-app` (milestone 2). The full spec is that change's `spec/capture-and-settings.md`. Decisions 3, 6 and 11 were amended on 2026-10-26 by the plan of `changes/2026-10-26-picked-designs`, whose spec is that change's `spec/`.

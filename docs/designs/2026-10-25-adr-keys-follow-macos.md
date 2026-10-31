@@ -10,8 +10,6 @@ amended_by: [2026-10-25-adr-capture-bar-and-settings-window, 2026-10-26-adr-reco
 tags: [ux, keys]
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # Keys follow macOS
 
 Amended on 2026-10-26 by the plan of `changes/2026-10-26-picked-designs`: the global keys below are the owner's list (A4), with One-Shot on ⌃⇧2. Keys while recording are in "Recording with key frames".

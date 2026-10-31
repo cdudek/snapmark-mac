@@ -1,23 +1,14 @@
-<p align="center"><img src="snapmark-app/assets/app-icon.svg" width="96" alt="HeyDiff icon"></p>
+<p align="center"><img src="snapmark-app/assets/app-icon.svg" width="96" alt="Snapmark icon"></p>
 
-<h1 align="center">HeyDiff for Mac</h1>
+<h1 align="center">Snapmark</h1>
 
 <p align="center">Screenshot, mark it up, and collect it in one Markdown file you can hand to an AI.</p>
 
 ---
 
-The HeyDiff Mac app. HeyDiff is team feedback for software built with AI; it was called Snapmark until 2026-10-28 ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). Until the Mac app's new-ids change ships, the app still installs, runs and updates as Snapmark (`com.cdudek.snapmark`, the `snapmark-app/` folder, the `snapmark-updates` bucket).
+The Snapmark Mac app: a macOS menu bar app (Electron, TypeScript), in [`snapmark-app/`](snapmark-app/README.md).
 
-Each HeyDiff product has its own repository:
-
-| Repository                                                       | What it is                                                                                  | State       |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------- |
-| `heydiff-desktop` (this one)                                     | The macOS menu bar app (Electron, TypeScript), in [`snapmark-app/`](snapmark-app/README.md) | shipping    |
-| [`heydiff-web`](https://github.com/pokbytes/heydiff-web)         | The web app, landing page and MCP server                                                    | not started |
-| [`heydiff-chrome`](https://github.com/pokbytes/heydiff-chrome)   | The Chrome extension                                                                        | not started |
-| [`heydiff-context`](https://github.com/pokbytes/heydiff-context) | Strategy, audiences and decisions                                                           | live        |
-
-Shared at the root: the SDLC chain (`sdlc.json`, `changes/`, `.claude/`, `scripts/`, `tests/sdlc.test.ts`), the docs (`docs/`), design explorations, CI and the release workflow.
+At the root: the SDLC chain (`sdlc.json`, `changes/`, `.claude/`, `scripts/`, `tests/sdlc.test.ts`), the docs (`docs/`), design explorations, CI and the release workflow.
 
 ## Develop
 

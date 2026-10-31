@@ -14,7 +14,7 @@ One line: title · status · date · tags. Newest first within each type.
 - [Capture bar on ⌃⇧5, Settings as a window, Keyboard Shortcuts in its own file](2026-10-25-adr-capture-bar-and-settings-window.md) · accepted · 2026-10-25 · ux, keys, menu, capture, settings
 - [Updates](2026-09-26-adr-updates.md) · accepted · 2026-09-26 · ux
 - [Toolbar](2026-09-26-adr-toolbar.md) · accepted · 2026-09-26 · ux
-- ["Open Session" opens HeyDiff''s own session viewer](2026-09-26-adr-open-session-opens-snapmark-s-own.md) · open · 2026-09-26 · ux
+- ["Open Session" opens Snapmark''s own session viewer](2026-09-26-adr-open-session-opens-snapmark-s-own.md) · open · 2026-09-26 · ux
 - [Menu rebuilt from the 2026-09-26 menu audit](2026-09-26-adr-menu-rebuilt-from-the-2026-09.md) · accepted · 2026-09-26 · ux
 - [Menu labels name their object](2026-09-26-adr-menu-labels-name-their-object.md) · accepted · 2026-09-26 · ux
 - [Icons before menu items](2026-09-26-adr-icons-before-menu-items.md) · accepted · 2026-09-26 · ux
@@ -49,7 +49,3 @@ One line: title · status · date · tags. Newest first within each type.
 - [Discard keeps the screenshot and its marks for 7 days](2026-09-25-adr-discard-keeps-the-screenshot-and-its.md) · accepted · 2026-09-25 · ux
 - [Build as two changes](2026-09-25-adr-build-as-two-changes.md) · accepted · 2026-09-25 · ux
 - [Bug](2026-09-25-adr-bug.md) · accepted · 2026-09-25 · ux
-
-## design (1)
-
-- [HeyDiff: design](2026-10-27-snapmark-online.md) · draft · 2026-10-27

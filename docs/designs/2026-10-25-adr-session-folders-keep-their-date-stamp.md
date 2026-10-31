@@ -10,8 +10,6 @@ amended_by: []
 tags: [ux, sessions, menu]
 ---
 
-_Note (2026-10-28): the product is now HeyDiff ([decision](https://github.com/pokbytes/heydiff-context/blob/main/strategy/2026-10-28-name-heydiff.md)). This accepted record keeps the name Snapmark as written._
-
 # Session folders keep their date stamp; screens show a readable name
 
 Accepted on 2026-10-25 with the plan of `changes/2026-10-25-session-names`.
