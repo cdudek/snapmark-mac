@@ -1,7 +1,5 @@
 # Agent Instructions
 
-Strategy (market, pricing, competitors, roadmap, design-system pointers) lives in `pokbytes/snapmark-context`, checked out at `~/projects/snapmark/snapmark-context`; start with its `CLAUDE.md`.
-
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
 ## Quick Reference

@@ -6,16 +6,9 @@
 
 ---
 
-The Snapmark Mac app. Each Snapmark product has its own repository:
+The Snapmark Mac app: a macOS menu bar app (Electron, TypeScript), in [`snapmark-app/`](snapmark-app/README.md).
 
-| Repository                                                         | What it is                                                                                  | State       |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ----------- |
-| `snapmark-desktop` (this one)                                      | The macOS menu bar app (Electron, TypeScript), in [`snapmark-app/`](snapmark-app/README.md) | shipping    |
-| [`snapmark-web`](https://github.com/pokbytes/snapmark-web)         | The web app, landing page and MCP server                                                    | not started |
-| [`snapmark-chrome`](https://github.com/pokbytes/snapmark-chrome)   | The Chrome extension                                                                        | not started |
-| [`snapmark-context`](https://github.com/pokbytes/snapmark-context) | Strategy, audiences and decisions                                                           | live        |
-
-Shared at the root: the SDLC chain (`sdlc.json`, `changes/`, `.claude/`, `scripts/`, `tests/sdlc.test.ts`), the docs (`docs/`), design explorations, CI and the release workflow.
+At the root: the SDLC chain (`sdlc.json`, `changes/`, `.claude/`, `scripts/`, `tests/sdlc.test.ts`), the docs (`docs/`), design explorations, CI and the release workflow.
 
 ## Develop
 

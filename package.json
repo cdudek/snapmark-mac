@@ -20,5 +20,5 @@
     "sdlc:tools": "curl -fsSL https://plannotator.ai/install.sh | bash && claude plugin marketplace add backnotprop/plannotator && claude plugin install plannotator@plannotator && npx skills add backnotprop/plannotator/apps/skills/extra --global --skill plannotator-setup-goal --agent claude-code --yes"
   },
   "author": "Calvin Dudek",
-  "repository": "github:pokbytes/snapmark-desktop"
+  "repository": "github:cdudek/snapmark-mac"
 }
