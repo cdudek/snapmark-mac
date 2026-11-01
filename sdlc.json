@@ -172,7 +172,8 @@
     "lint": "npm run format:check && npm run lint && npm run typecheck",
     "unit": "npm test",
     "build": "npm run build",
-    "e2e": "xvfb-run -a npm run smoke"
+    "e2e": "xvfb-run -a npm run smoke",
+    "e2eTouched": "pnpm exec playwright install --with-deps chromium && pnpm exec playwright test {files}"
   },
-  "sdlcVersion": "3.3.1"
+  "sdlcVersion": "3.4.1"
 }
