@@ -21,3 +21,6 @@ __pycache__/
 .vitest/
 # verify_gate.py output; lock.json is committed
 /changes/*/verify/
+
+# slop.py output
+/slop-report.json

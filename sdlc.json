@@ -97,7 +97,9 @@
       "*eslint.config.*",
       ".prettierrc.json",
       ".prettierignore",
-      ".releaserc.json"
+      ".releaserc.json",
+      ".oxlintrc.json",
+      ".fitness/*"
     ],
     "specs": [],
     "lint": {
@@ -119,7 +121,9 @@
         "*eslint.config.*",
         ".prettierrc.json",
         ".prettierignore",
-        ".releaserc.json"
+        ".releaserc.json",
+        ".oxlintrc.json",
+        ".fitness/*"
       ],
       "exclude": []
     },
