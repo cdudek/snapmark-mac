@@ -18,7 +18,7 @@ the reference is **[docs/sdlc.md](docs/sdlc.md)**.
 
     npm run format && npm run lint && npm run typecheck && npm test
 
-Run it before reporting any task complete, and paste the tail. If a test fails, fix the
+Run it before reporting any task complete, and paste the tail. `npm run slop` (anti-slop rules, complexity and clone metrics against `origin/main`; needs `lizard` on PATH) is its own CI job; hotspots live in `.fitness/slop-baseline.json` and may only shrink. If a test fails, fix the
 code, not the test. The Stop hook runs it for you when source files are dirty.
 
 ## Decision4 handoff contract (v1)
