@@ -24,3 +24,4 @@ __pycache__/
 
 # slop.py output
 /slop-report.json
+/fitness-report.json

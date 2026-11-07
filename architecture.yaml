@@ -1,0 +1,123 @@
+# The architecture as data (STR-3). scripts/fitness.py reads it; do not describe the same thing twice in prose.
+# Snapmark is an Electron app in one npm package (snapmark-app), so the modules are files, not folders:
+#   main process  main.ts is the only module that wires the others together; the rest are libraries it calls
+#   renderers     one window = one .html + one .ts, loaded as classic scripts: no imports, no Node, no Electron
+#   shared leaves surface, tools, keys: imported by many, import nothing of ours
+# `paths` are repo-relative files or folders. `door` is the one file other modules may import (STR-2).
+# `external` (optional) lists the packages a module may use; without it any package is allowed.
+# An edge is an import/require of a relative file, or a <script src> in an .html.
+version: 1
+scan: snapmark-app/src
+modules:
+  - {
+      name: main,
+      paths: [snapmark-app/src/main.ts],
+      door: snapmark-app/src/main.ts,
+      may_depend_on: [sessions, exporter, menu, keys, capture, stitch, parts, ocr, redact, tools],
+    }
+  - { name: preload, paths: [snapmark-app/src/preload.ts], door: snapmark-app/src/preload.ts, may_depend_on: [], external: [electron] }
+  - { name: sessions, paths: [snapmark-app/src/sessions.ts], door: snapmark-app/src/sessions.ts, may_depend_on: [], external: [fs, path] }
+  - { name: exporter, paths: [snapmark-app/src/exporter.ts], door: snapmark-app/src/exporter.ts, may_depend_on: [sessions] }
+  - { name: menu, paths: [snapmark-app/src/menu.ts], door: snapmark-app/src/menu.ts, may_depend_on: [keys] }
+  - { name: capture, paths: [snapmark-app/src/capture.ts], door: snapmark-app/src/capture.ts, may_depend_on: [] }
+  - { name: stitch, paths: [snapmark-app/src/stitch.ts], door: snapmark-app/src/stitch.ts, may_depend_on: [] }
+  - { name: parts, paths: [snapmark-app/src/parts.ts], door: snapmark-app/src/parts.ts, may_depend_on: [] }
+  - { name: ocr, paths: [snapmark-app/src/ocr.ts], door: snapmark-app/src/ocr.ts, may_depend_on: [] }
+  - { name: redact, paths: [snapmark-app/src/redact.ts], door: snapmark-app/src/redact.ts, may_depend_on: [ocr] }
+  - {
+      name: md-notes,
+      paths: [snapmark-app/src/md-notes.ts],
+      door: snapmark-app/src/md-notes.ts,
+      may_depend_on: [],
+      external: ['@milkdown/kit'],
+    }
+  - { name: beautify, paths: [snapmark-app/src/beautify.ts], door: snapmark-app/src/beautify.ts, may_depend_on: [], external: [] }
+  - {
+      name: editor,
+      paths: [snapmark-app/src/editor.ts, snapmark-app/src/editor.html],
+      door: snapmark-app/src/editor.ts,
+      may_depend_on: [surface, tools, md-notes, beautify],
+      external: [fabric],
+    }
+  - {
+      name: viewer,
+      paths: [snapmark-app/src/viewer.ts, snapmark-app/src/viewer.html],
+      door: snapmark-app/src/viewer.ts,
+      may_depend_on: [surface, md-notes],
+      external: [],
+    }
+  - {
+      name: bar,
+      paths: [snapmark-app/src/bar.ts, snapmark-app/src/bar.html],
+      door: snapmark-app/src/bar.ts,
+      may_depend_on: [surface],
+      external: [],
+    }
+  - {
+      name: area,
+      paths: [snapmark-app/src/area.ts, snapmark-app/src/area.html],
+      door: snapmark-app/src/area.ts,
+      may_depend_on: [surface],
+      external: [],
+    }
+  - {
+      name: scroll,
+      paths: [snapmark-app/src/scroll.ts, snapmark-app/src/scroll.html],
+      door: snapmark-app/src/scroll.ts,
+      may_depend_on: [surface],
+      external: [],
+    }
+  - {
+      name: countdown,
+      paths: [snapmark-app/src/countdown.ts, snapmark-app/src/countdown.html],
+      door: snapmark-app/src/countdown.ts,
+      may_depend_on: [surface],
+      external: [],
+    }
+  - {
+      name: settings,
+      paths: [snapmark-app/src/settings.ts, snapmark-app/src/settings.html],
+      door: snapmark-app/src/settings.ts,
+      may_depend_on: [surface],
+      external: [],
+    }
+  - {
+      name: shortcuts,
+      paths: [snapmark-app/src/shortcuts.ts, snapmark-app/src/shortcuts.html],
+      door: snapmark-app/src/shortcuts.ts,
+      may_depend_on: [surface, tools],
+      external: [],
+    }
+shared:
+  - { name: surface, paths: [snapmark-app/src/surface.ts], door: snapmark-app/src/surface.ts }
+  - { name: tools, paths: [snapmark-app/src/tools.ts], door: snapmark-app/src/tools.ts }
+  - { name: keys, paths: [snapmark-app/src/keys.ts], door: snapmark-app/src/keys.ts }
+  - { name: types, paths: [snapmark-app/src/shared.d.ts, snapmark-app/src/tokens.css], may_depend_on: [md-notes, stitch] } # type-only imports, the window API in one place
+ignore: [snapmark-app/src/tokens.css]
+fitness:
+  - id: arch.boundaries
+    target: arch
+    tool: scripts/fitness.py arch (imports and <script src> parsed from snapmark-app/src)
+    gate: no unowned file, no import past a door, no undeclared edge, no disallowed package, no cycle; violations are zero or listed in .fitness/arch-baseline.json, which may only shrink
+  - id: arch.score
+    target: arch
+    metric: 100 * (1 - violating_edges / all_cross_module_edges); a cycle is a hard fail
+    gate: score >= 90 and >= the merge base's score
+  - id: quality.slop
+    target: slop
+    tool: scripts/slop.py (anti-slop rules, lizard, jscpd)
+    gate: no metric above the merge base, no new hits or complex functions beyond .fitness/slop-baseline.json
+  - id: perf.bundle
+    target: perf
+    tool: scripts/fitness.py perf (gzip size of what the app packages, after npm run build)
+    gate: each budget below holds; the DMG itself is built and signed only on the macOS release runner, so it is not measured per PR
+    budgets: # gzip bytes
+      - { name: renderer and main code, files: 'snapmark-app/dist/src/**/*', max_gzip: 243000 }
+      - { name: notes editor bundle (md-notes.js), files: snapmark-app/dist/src/md-notes.js, max_gzip: 130000 }
+      - { name: fabric.min.js, files: node_modules/fabric/dist/index.min.js, max_gzip: 102000 }
+  - id: perf.web
+    target: perf
+    gate: not applicable, the product has no web pages (Lighthouse needs a URL); prints "not applicable" and exits 0
+  - id: decision4
+    target: decision4
+    gate: CI-26, the `decision4` job reads the PR body; it cannot run locally

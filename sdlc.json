@@ -99,7 +99,8 @@
       ".prettierignore",
       ".releaserc.json",
       ".oxlintrc.json",
-      ".fitness/*"
+      ".fitness/*",
+      "architecture.yaml"
     ],
     "specs": [],
     "lint": {
@@ -123,7 +124,8 @@
         ".prettierignore",
         ".releaserc.json",
         ".oxlintrc.json",
-        ".fitness/*"
+        ".fitness/*",
+        "architecture.yaml"
       ],
       "exclude": []
     },
