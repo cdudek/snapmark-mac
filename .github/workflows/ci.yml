@@ -231,6 +231,58 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: gh pr comment "$PR" --body-file "$RUNNER_TEMP/slop.md" --edit-last --create-if-none
 
+  # STR-3, CI-23: architecture.yaml is the policy; imports are checked against it. Cycles hard-fail; the score may not drop below
+  # 90 or the merge base's. Python and PyYAML only: no install, no build.
+  arch:
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the merge base
+          persist-credentials: false
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3
+      - name: Boundaries and score
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: |
+          case "$BASE" in *0000000000000000000000000000000000000000) BASE="" ;; esac # first push: no previous commit
+          { echo '```'; "$RUNNER_TEMP/v/bin/python" scripts/fitness.py arch ${BASE:+--base "$BASE"} || rc=$?; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${rc:-0}"
+
+  # CI-23: the app bundle budget. Measures what electron-builder packs from dist/src (gzip), not the DMG: building and signing that
+  # needs the macOS runner, which only the release does. perf.web is not applicable (no pages).
+  perf:
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run build
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3
+      - name: Bundle budgets
+        run: |
+          { echo '```'; "$RUNNER_TEMP/v/bin/python" scripts/fitness.py perf || rc=$?; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${rc:-0}"
+
   unit:
     needs: changes
     if: needs.changes.outputs.unit == 'true'
@@ -330,7 +382,7 @@ jobs:
   # (no code or config touched) and pr-title on pushes to main count as passed.
   check:
     if: always()
-    needs: [changes, pr-title, format, lint, typecheck, slop, unit, e2e, decision4]
+    needs: [changes, pr-title, format, lint, typecheck, slop, arch, perf, unit, e2e, decision4]
     runs-on: ubuntu-latest
     steps:
       - env:
