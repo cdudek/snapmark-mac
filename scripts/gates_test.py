@@ -8,7 +8,7 @@ so it fails for the reason it is named after. Needs what the gates need: PyYAML,
   decision4    body.md + files.txt   the python of the `decision4` job in ci.yml, run on a fake PR body
   slop         head/ [base/] baseline.json   scripts/slop.py --root head [--base-root base]
   arch         spec.yaml + src/      scripts/fitness.py arch --root case
-  perf         spec.yaml + dist/     scripts/fitness.py perf --root case
+  perf         spec.yaml + bundle/    scripts/fitness.py perf --root case
   enforcement  spec.yaml + ci.yml    scripts/enforcement_audit.py --offline
 """
 

@@ -2,4 +2,4 @@ version: 1
 fitness:
   - id: perf.bundle
     budgets:
-      - { name: bundle, files: 'dist/*.js', max_gzip: 10000 }
+      - { name: bundle, files: 'bundle/*.js', max_gzip: 10000 }
