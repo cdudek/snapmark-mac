@@ -101,5 +101,16 @@
   },
   "permissions": {
     "deny": ["Read(.env*)", "Read(**/secrets/**)", "Read(**/.secrets/**)"]
+  },
+  "extraKnownMarketplaces": {
+    "cct": {
+      "source": {
+        "source": "github",
+        "repo": "cdudek/calvins-claude-tools"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "cct@cct": true
   }
 }
