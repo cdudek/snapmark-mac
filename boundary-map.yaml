@@ -1,0 +1,38 @@
+# Decision4 v1.0.1 boundary map
+version: 1
+precedence: highest-floor-wins
+entries:
+  - select:
+      paths: ['snapmark-app/src/**']
+    floor: Repair
+    put_right: 'Fix forward and release a new version; installed copies update from the update bucket'
+    answerer: 'Owner'
+  - select:
+      paths: ['snapmark-app/src/sessions.ts', 'snapmark-app/src/md-notes.ts', 'snapmark-app/src/exporter.ts']
+    floor: Migrate
+    put_right: "Sessions are folders with session.md and img/NNN.png on people's disks and are read by their AI agents; a wrong format change needs every existing session and every agent prompt to cope with both shapes"
+    answerer: 'Owner'
+  - select:
+      paths:
+        [
+          '.github/workflows/release.yml',
+          'snapmark-app/build/**',
+          'snapmark-app/scripts/after-pack.cjs',
+          'snapmark-app/scripts/electron-builder.sh',
+          'snapmark-app/scripts/prune-releases.sh',
+        ]
+      config_keys:
+        ['snapmark-app/package.json:build.publish', 'snapmark-app/package.json:build.mac', 'snapmark-app/package.json:build.appId']
+    floor: Answer
+    put_right: 'Installed Macs trust the Developer ID signature and pull updates from the snapmark-updates bucket; a bad signature, entitlement or feed reaches every installed copy and cannot be recalled from them'
+    answerer: 'Owner'
+  - select:
+      paths: ['.github/workflows/*.y*ml', 'sdlc.json', 'scripts/test_ci_changes.sh', '.releaserc.json']
+    floor: Migrate
+    put_right: 'The main ruleset requires the status check named check and semantic-release reads the PR title; a wrong change blocks every merge or cuts the wrong version until workflow and ruleset agree again'
+    answerer: 'Owner'
+  - select:
+      paths: ['boundary-map.yaml', '.github/**', '.claude/hooks/**', '.claude/settings.json', 'scripts/verify_gate.py']
+    floor: Migrate
+    put_right: 'Floors and gates for the whole repo change; restoring them needs the owner'
+    answerer: 'Owner'
