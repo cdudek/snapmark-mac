@@ -21,6 +21,39 @@ the reference is **[docs/sdlc.md](docs/sdlc.md)**.
 Run it before reporting any task complete, and paste the tail. If a test fails, fix the
 code, not the test. The Stop hook runs it for you when source files are dirty.
 
+## Decision4 handoff contract (v1)
+
+Source: [Decision4 v1.0.1](https://github.com/Habitat-Thinking/decision4/blob/v1.0.1/DECISION4.md), Habitat Thinking, CC BY 4.0.
+
+For every decision you make, ask: "If this turns out to be wrong,
+what does it take to put right?" Take the class from the boundary map.
+Classes run from lowest to highest: Undo, Repair, Migrate, Answer.
+
+- Undo (a revert): hand back the result.
+- Repair (real work, contained to this team): hand back the result and a
+  choice story: Chose / Over / Because / Commits us to.
+- Migrate (coordinated change involving other people): hand back at least
+  two real options, or one stated as forced with the constraint that forces it.
+- Answer (an explanation to someone outside the team with standing to ask,
+  because the wrong outcome has reached them and nothing unmakes it): hand back
+  evidence labelled observed, inferred, asked or unknown, and your challenges.
+  Do not recommend.
+
+Rules:
+
+- Propose a class at or above the map's floor, never below it.
+- Unmapped or unsure: take the higher class and log a map gap.
+- A change takes the class of its highest decision.
+- Escalate freely and say who it pulls in. Never lower a class silently.
+- Unattended runs close only Undo. Above Undo, hand back and stop.
+
+Here:
+
+- The boundary map is `boundary-map.yaml` at the repo root.
+- The PR description carries the Decision4 fields (`Decision-Class`, `Put-right`, `Answerer`, `Class-Change`); the template has them and the `decision4` check reads them.
+- Autonomous runs (a /goal build, scheduled jobs, bots) close only work at or below the class approved at the plan gate (default ceiling Undo) and hand back anything higher.
+- The answerer for Migrate and Answer is the owner unless the map names another.
+
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 
 ## Beads Issue Tracker

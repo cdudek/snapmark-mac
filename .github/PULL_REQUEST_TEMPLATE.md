@@ -23,3 +23,31 @@ Fixes <LINEAR-ID>
 ## Out of scope
 
 - <what this PR deliberately does not do>
+
+## Decision4
+
+If this turns out to be wrong, what does it take to put right? Take the class from `boundary-map.yaml`; a change takes the class of its highest decision. When unsure, take the higher class. Fill the fields below; delete the lines and blocks that do not apply to your class. The `decision4` check reads them.
+
+Decision-Class: <Undo | Repair | Migrate | Answer>
+Put-right: <Repair and above: what it takes to put this right>
+Answerer: <Migrate and Answer: who answers for it>
+Class-Change: <only if lowered: `<from> -> <to>; lowered by <who>; <why>`>
+
+**Choice story (Repair)**
+
+- Chose:
+- Over:
+- Because:
+- Commits us to:
+
+**Options (Migrate)**
+
+- Option 1:
+- Option 2:
+- Or one option stated as forced, with the constraint that forces it:
+
+**Evidence and challenges (Answer)**
+
+- Observed / inferred / asked / unknown:
+- Challenges:
+- No recommendation.

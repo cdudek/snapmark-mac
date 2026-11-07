@@ -215,11 +215,78 @@ jobs:
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: xvfb-run -a npm run smoke
 
+  # Decision4 v1.0.1 (https://github.com/Habitat-Thinking/decision4/blob/v1.0.1/DECISION4.md): the map is valid and the PR body meets the
+  # floor of the paths the PR changes. Re-runs when the body is edited (see the pull_request types above).
+  decision4:
+    name: decision4
+    # bot PRs cannot carry the fields
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3 check-jsonschema==0.39.0
+      - name: boundary-map.yaml matches the pinned schema
+        # Decision4 v1.0.1, pinned by commit SHA (a tag can move)
+        run: '"$RUNNER_TEMP/v/bin/check-jsonschema" --schemafile https://raw.githubusercontent.com/Habitat-Thinking/decision4/4429f821780655f253a954b2659bf38e7b9d5517/boundary-map.schema.json boundary-map.yaml'
+      - name: PR body meets the floor of the changed paths
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate "repos/$GH_REPO/pulls/$PR/files" --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/files.txt"
+          FILES="$RUNNER_TEMP/files.txt" "$RUNNER_TEMP/v/bin/python" - <<'PY'
+          import os, re, sys, yaml
+          ORDER = ["Undo", "Repair", "Migrate", "Answer"]
+          body = re.sub(r"<!--.*?-->", "", os.environ["BODY"], flags=re.S).replace("\r", "")
+          body = re.sub(r"<!--.*", "", body, flags=re.S)  # an unterminated comment hides the rest on GitHub
+          def field(name):
+              m = re.search(rf"^[ \t]*{name}:[ \t]*(.*?)[ \t]*$", body, re.M)
+              return m.group(1) if m else ""
+          def filled(name):
+              return bool(field(name)) and not field(name).startswith("<")
+          def fail(msg):
+              print(f"::error::{msg}")
+              sys.exit(1)
+          def rx(glob):  # ** any depth, * one segment
+              out, i = "", 0
+              while i < len(glob):
+                  if glob.startswith("**/", i): out, i = out + "(?:.*/)?", i + 3
+                  elif glob.startswith("**", i): out, i = out + ".*", i + 2
+                  elif glob[i] == "*": out, i = out + "[^/]*", i + 1
+                  else: out, i = out + re.escape(glob[i]), i + 1
+              return re.compile(out + "$")
+          declared = field("Decision-Class")
+          if declared not in ORDER:
+              fail("PR body needs one line 'Decision-Class: Undo|Repair|Migrate|Answer' with exactly one class")
+          files = [f for f in open(os.environ["FILES"]).read().split("\n") if f]
+          floor = "Undo"
+          for e in yaml.safe_load(open("boundary-map.yaml"))["entries"]:
+              hit = sorted({f for g in e["select"].get("paths", []) for f in files if rx(g).match(f)})
+              if hit:
+                  print(f"floor {e['floor']}: {', '.join(hit[:5])}{' ...' if len(hit) > 5 else ''}")
+                  floor = max(floor, e["floor"], key=ORDER.index)
+          print(f"computed floor: {floor}, declared: {declared}")
+          if ORDER.index(declared) < ORDER.index(floor) and not filled("Class-Change"):
+              fail(f"Decision-Class {declared} is below the floor {floor}; raise it, or record the lowering in a 'Class-Change:' line")
+          eff = max(declared, floor, key=ORDER.index)
+          if ORDER.index(eff) >= 1 and not filled("Put-right"): fail(f"class {eff} needs a filled 'Put-right:' line")
+          if ORDER.index(eff) >= 2 and not filled("Answerer"): fail(f"class {eff} needs a filled 'Answerer:' line")
+          print(f"Decision4 class: {eff}")
+          PY
+
   # The main ruleset requires a check named "check"; it passes only when no job above failed. A job skipped by `changes`
   # (no code or config touched) and pr-title on pushes to main count as passed.
   check:
     if: always()
-    needs: [changes, pr-title, format, lint, typecheck, unit, e2e]
+    needs: [changes, pr-title, format, lint, typecheck, unit, e2e, decision4]
     runs-on: ubuntu-latest
     steps:
       - env:
