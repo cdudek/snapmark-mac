@@ -99,18 +99,47 @@ fitness:
     target: arch
     tool: scripts/fitness.py arch (imports and <script src> parsed from snapmark-app/src)
     gate: no unowned file, no import past a door, no undeclared edge, no disallowed package, no cycle; violations are zero or listed in .fitness/arch-baseline.json, which may only shrink
+    enforcement:
+      {
+        checker: scripts/fitness.py,
+        job: arch,
+        invoked_by: ci job arch and npm run arch,
+        required: true,
+        config: [architecture.yaml, .fitness/arch-baseline.json],
+        tools: [python3],
+      }
   - id: arch.score
     target: arch
     metric: 100 * (1 - violating_edges / all_cross_module_edges); a cycle is a hard fail
     gate: score >= 90 and >= the merge base's score
+    enforcement:
+      { checker: scripts/fitness.py, job: arch, invoked_by: ci job arch, required: true, config: [architecture.yaml], tools: [python3] }
   - id: quality.slop
     target: slop
     tool: scripts/slop.py (anti-slop rules, lizard, jscpd)
     gate: no metric above the merge base, no new hits or complex functions beyond .fitness/slop-baseline.json
+    enforcement:
+      {
+        checker: scripts/slop.py,
+        job: slop,
+        invoked_by: ci job slop and npm run slop,
+        required: true,
+        config: [.oxlintrc.json, .fitness/slop-baseline.json, tools/oxlint/anti-slop/index.ts],
+        tools: [python3, lizard, node_modules/.bin/oxlint],
+      }
   - id: perf.bundle
     target: perf
     tool: scripts/fitness.py perf (gzip size of what the app packages, after npm run build)
     gate: each budget below holds; the DMG itself is built and signed only on the macOS release runner, so it is not measured per PR
+    enforcement:
+      {
+        checker: scripts/fitness.py,
+        job: perf,
+        invoked_by: ci job perf and npm run perf,
+        required: true,
+        config: [architecture.yaml],
+        tools: [python3, node_modules/.bin/tsc],
+      }
     budgets: # gzip bytes
       - { name: renderer and main code, files: 'snapmark-app/dist/src/**/*', max_gzip: 243000 }
       - { name: notes editor bundle (md-notes.js), files: snapmark-app/dist/src/md-notes.js, max_gzip: 130000 }
@@ -121,3 +150,38 @@ fitness:
   - id: decision4
     target: decision4
     gate: CI-26, the `decision4` job reads the PR body; it cannot run locally
+    enforcement:
+      {
+        checker: the decision4 job in .github/workflows/ci.yml,
+        job: decision4,
+        invoked_by: ci job decision4,
+        required: true,
+        config: [boundary-map.yaml, .github/PULL_REQUEST_TEMPLATE.md],
+        tools: [python3],
+      }
+  - id: harness.gates
+    target: gates-test
+    tool: scripts/gates_test.py (runs tests/fixtures/gates/<gate>/bad-* and good-*)
+    gate: every bad-* fixture makes its gate fail and every good-* fixture passes (TEST-19); runs on every code or config change
+    enforcement:
+      {
+        checker: scripts/gates_test.py,
+        job: gates-test,
+        invoked_by: ci job gates-test and npm run gates-test,
+        required: true,
+        config: [tests/fixtures/gates],
+        tools: [python3, lizard, node_modules/.bin/oxlint],
+      }
+  - id: harness.enforcement
+    target: enforcement-audit
+    tool: scripts/enforcement_audit.py (installed, configured, executed, passed per row above)
+    gate: a non-blocking report on every PR, and a monthly workflow that opens or updates an issue on gaps (CI-31)
+    enforcement:
+      {
+        checker: scripts/enforcement_audit.py,
+        job: enforcement-audit,
+        invoked_by: ci job enforcement-audit and .github/workflows/enforcement-audit.yml,
+        required: false,
+        config: [architecture.yaml],
+        tools: [python3],
+      }

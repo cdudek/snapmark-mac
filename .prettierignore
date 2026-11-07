@@ -7,3 +7,6 @@ snapmark-app/src/tokens.css
 
 # vendored anti-slop rules: ours to change, but not to reformat (CQ-15)
 tools/oxlint/anti-slop
+
+# negative fixtures are bad on purpose (TEST-19)
+tests/fixtures/gates

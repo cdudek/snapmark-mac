@@ -1,0 +1,7 @@
+version: 1
+scan: src
+modules:
+  - { name: a, paths: [src/a.ts], door: src/a.ts, may_depend_on: [b] }
+  - { name: b, paths: [src/b.ts], door: src/b.ts, may_depend_on: [] }
+shared: []
+fitness: []

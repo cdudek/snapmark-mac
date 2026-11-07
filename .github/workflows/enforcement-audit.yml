@@ -1,0 +1,38 @@
+name: Enforcement audit
+
+# CI-31: once a month, independent of any PR, check that every rule with an enforcement row in architecture.yaml still has its
+# tool, config, job in the required check and a green run, and open or update one issue when it does not.
+on:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3
+          echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
+      - run: python3 scripts/enforcement_audit.py --issue --summary "$GITHUB_STEP_SUMMARY" || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

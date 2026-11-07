@@ -1,0 +1,4 @@
+version: 1
+fitness:
+  - id: demo.gate
+    enforcement: { checker: scripts/demo.py, job: demo, required: true, config: [missing.cfg], tools: [python3] }

@@ -1,0 +1,6 @@
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+  check:
+    needs: []
+    runs-on: ubuntu-latest

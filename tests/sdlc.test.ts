@@ -389,6 +389,15 @@ describe('settings.json', () => {
       expect(() => accessSync(join(HOOKS, script), constants.X_OK), `${script} not executable`).not.toThrow();
     }
   });
+  // TEST-20 contract: no orphan hook (a script nothing runs), no hook that does not parse. sdlc-config.sh is the library the others source.
+  it('registers every hook script, and each one is a script that parses', () => {
+    const registered = JSON.stringify(settings.hooks);
+    for (const f of readdirSync(HOOKS).filter((n) => n.endsWith('.sh') && n !== 'sdlc-config.sh')) {
+      expect(registered, `${f} is in .claude/hooks but settings.json does not run it`).toContain(f);
+      expect(readFileSync(join(HOOKS, f), 'utf8').startsWith('#!'), `${f} has no shebang`).toBe(true);
+      expect(spawnSync('bash', ['-n', join(HOOKS, f)]).status, `${f} does not parse`).toBe(0);
+    }
+  });
   it('tracks the hook files despite a global gitignore', () => {
     const tracked = spawnSync('git', ['ls-files', '.claude/settings.json', '.claude/hooks', 'sdlc.json'], {
       cwd: ROOT,

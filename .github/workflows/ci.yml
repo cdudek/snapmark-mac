@@ -283,6 +283,65 @@ jobs:
           { echo '```'; "$RUNNER_TEMP/v/bin/python" scripts/fitness.py perf || rc=$?; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           exit "${rc:-0}"
 
+  # TEST-19: every gate has bad-* and good-* fixtures in tests/fixtures/gates; a gate that stops failing its bad cases fails here.
+  gates-test:
+    needs: changes
+    if: needs.changes.outputs.lint == 'true' || needs.changes.outputs.unit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3
+          echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
+      - run: python3 scripts/gates_test.py
+
+  # CI-30: a non-blocking report. Does every rule that names a check have the tool, the config, a job in `check`, and a green run?
+  # The monthly enforcement-audit.yml runs the same script and opens an issue on gaps (CI-31).
+  enforcement-audit:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.lint == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read # the last run of each job on main
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/v"
+          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3
+          echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
+      - run: |
+          python3 scripts/enforcement_audit.py --summary "$RUNNER_TEMP/audit.md" || rc=$?
+          cat "$RUNNER_TEMP/audit.md" >> "$GITHUB_STEP_SUMMARY"
+          exit "${rc:-0}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
   unit:
     needs: changes
     if: needs.changes.outputs.unit == 'true'
@@ -382,7 +441,7 @@ jobs:
   # (no code or config touched) and pr-title on pushes to main count as passed.
   check:
     if: always()
-    needs: [changes, pr-title, format, lint, typecheck, slop, arch, perf, unit, e2e, decision4]
+    needs: [changes, pr-title, format, lint, typecheck, slop, arch, perf, gates-test, unit, e2e, decision4]
     runs-on: ubuntu-latest
     steps:
       - env:
