@@ -2,6 +2,7 @@
 """The `slop` gate (CQ-16, CQ-18..21): anti-slop lint rules plus complexity and clone metrics.
 
   python3 scripts/slop.py [--base REF] [--update] [--report FILE] [--summary FILE]
+                          [--root DIR] [--base-root DIR] [--baseline FILE]   (the last three exist for the gates-test fixtures)
 
 Needs on PATH: node (22+), lizard (pip install lizard==1.25.1), npx (jscpd). Run from anywhere.
 Measures the TypeScript under SCOPE, then fails when:
@@ -42,22 +43,28 @@ def run(cmd, cwd, ok=(0,)):
     return p.stdout
 
 
+def scope(root):
+    return [d for d in SCOPE if (Path(root) / d).is_dir()]
+
+
 def lizard(root):
     """Per function: (file, name, complexity, nloc)."""
-    out = run(["lizard", "-l", "typescript", "--csv", *SCOPE], root)
+    out = run(["lizard", "-l", "typescript", "--csv", *scope(root)], root)
     return [(r[6], r[7], int(r[1]), int(r[0])) for r in csv.reader(out.splitlines()) if len(r) >= 10]
 
 
 def clone_ratio(root):
     with tempfile.TemporaryDirectory() as out:
-        run(["npx", "--yes", JSCPD, "--reporters", "json", "--output", out, "--format", "typescript", "--silent", *SCOPE], root)
+        run(["npx", "--yes", JSCPD, "--reporters", "json", "--output", out, "--format", "typescript", "--silent", *scope(root)], root)
         return json.loads((Path(out) / "jscpd-report.json").read_text())["statistics"]["total"]["percentage"] / 100
 
 
 def slop_hits(root):
     """{"file|rule": count} of error-level anti-slop hits. Runs HEAD's config on the tree at root."""
-    cmd = [str(OXLINT), "-c", str(ROOT / ".oxlintrc.json"), "-f", "json", *SCOPE]
+    cmd = [str(OXLINT), "-c", str(ROOT / ".oxlintrc.json"), "-f", "json", *scope(root)]
     out = run(cmd, root, ok=(0, 1))
+    if not out.startswith("{"):
+        sys.exit(f"slop: oxlint did not produce JSON (node 22+ is needed to load the TypeScript plugin):\n{out[-1500:]}")
     return dict(Counter(f"{d['filename']}|{d['code']}" for d in json.loads(out)["diagnostics"] if d["severity"] == "error" and d["code"].startswith(SLOP_RULES)))
 
 
@@ -107,10 +114,13 @@ def main():
     ap.add_argument("--update", action="store_true")
     ap.add_argument("--report", default="slop-report.json")
     ap.add_argument("--summary")
+    ap.add_argument("--root", help="measure this tree instead of the repo")
+    ap.add_argument("--base-root", help="compare with this tree instead of a git ref")
+    ap.add_argument("--baseline", help="baseline file instead of " + BASELINE)
     a = ap.parse_args()
 
-    metrics, hits, spots = measure(ROOT)
-    path = ROOT / BASELINE
+    metrics, hits, spots = measure(Path(a.root).resolve() if a.root else ROOT)
+    path = Path(a.baseline).resolve() if a.baseline else ROOT / BASELINE
     if a.update:
         path.parent.mkdir(exist_ok=True)
         path.write_text(json.dumps({"metrics": metrics, "hits": dict(sorted(hits.items())), "hotspots": dict(sorted(spots.items()))}, indent=2) + "\n")
@@ -127,7 +137,12 @@ def main():
         errors.append(f"function above complexity {CC_LIMIT} not in the baseline or more complex than it (limit {base['hotspots'].get(k, CC_LIMIT)}, found {v}): {k}")
 
     rows = [{"id": f"slop.{k}", "value": v, "threshold": base["metrics"][k], "baseline": base["metrics"][k], "pass": v <= base["metrics"][k]} for k, v in metrics.items()]
-    if a.base:
+    if a.base_root:
+        ref_metrics = measure(Path(a.base_root).resolve())[0]
+        for r in rows:
+            k = r["id"].removeprefix("slop.")
+            r["threshold"], r["pass"] = ref_metrics[k], r["value"] <= ref_metrics[k]
+    elif a.base:
         ref = subprocess.run(["git", "merge-base", a.base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or a.base
         old_baseline = baseline_at(ref)
         if old_baseline:

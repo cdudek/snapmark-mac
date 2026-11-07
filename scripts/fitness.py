@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Fitness functions that read architecture.yaml (STR-3, CI-23).
 
-  python3 scripts/fitness.py arch   [--base REF] [--root DIR]   boundaries, cycles, score
-  python3 scripts/fitness.py perf                               bundle budgets (run `npm run build` first)
-  python3 scripts/fitness.py all                                every dimension, writes fitness-report.json
+  python3 scripts/fitness.py arch   [--base REF]   boundaries, cycles, score
+  python3 scripts/fitness.py perf                  bundle budgets (run `npm run build` first)
+  python3 scripts/fitness.py all                   every dimension, writes fitness-report.json
+--root DIR and --spec FILE point arch and perf at another tree and policy file (the gates-test fixtures).
 
 Needs PyYAML. `arch` parses imports and <script src> tags, so it needs no build and no node_modules.
 """
@@ -26,10 +27,10 @@ SCRIPT_SRC = re.compile(r"""<script[^>]*\ssrc=["']([^"']+)["']""")
 RESOLVE = ["", ".ts", ".d.ts", ".html", ".css", "/index.ts"]
 
 
-def load_arch():
+def load_arch(spec=None):
     import yaml
 
-    return yaml.safe_load((ROOT / "architecture.yaml").read_text())
+    return yaml.safe_load(Path(spec or ROOT / "architecture.yaml").read_text())
 
 
 def specs_of(file, text):
@@ -118,11 +119,12 @@ def score(edges, bad):
     return round(100 * (1 - bad / edges), 2) if edges else 100.0
 
 
-def arch(base, root):
-    spec = load_arch()
-    violations, edges, bad, graph = analyse(root or ROOT, spec)
+def arch(base, root, spec_file):
+    root = Path(root).resolve() if root else ROOT
+    spec = load_arch(spec_file)
+    violations, edges, bad, graph = analyse(root, spec)
     loops = cycles(graph)
-    allowed = set(json.loads((ROOT / ARCH_BASELINE).read_text())["violations"]) if (ROOT / ARCH_BASELINE).exists() else set()
+    allowed = set(json.loads((root / ARCH_BASELINE).read_text())["violations"]) if (root / ARCH_BASELINE).exists() else set()
     new = [v for v in violations if v not in allowed]
     now = score(edges, bad)
     floor = SCORE_FLOOR
@@ -144,11 +146,12 @@ def arch(base, root):
     return rows
 
 
-def perf():
-    budgets = next(f for f in load_arch()["fitness"] if f["id"] == "perf.bundle")["budgets"]
+def perf(root, spec_file):
+    root = Path(root).resolve() if root else ROOT
+    budgets = next(f for f in load_arch(spec_file)["fitness"] if f["id"] == "perf.bundle")["budgets"]
     rows = []
     for b in budgets:
-        files = [p for p in ROOT.glob(b["files"]) if p.is_file()]
+        files = [p for p in root.glob(b["files"]) if p.is_file()]
         size = sum(len(gzip.compress(p.read_bytes(), 9)) for p in files)
         if not files:
             sys.exit(f"perf: {b['files']} matches nothing; run `npm run build` first")
@@ -167,13 +170,14 @@ def main():
     ap.add_argument("dimension", choices=["arch", "perf", "all"])
     ap.add_argument("--base")
     ap.add_argument("--root")
+    ap.add_argument("--spec")
     ap.add_argument("--report", default="fitness-report.json")
     a = ap.parse_args()
     rows = []
     if a.dimension in ("arch", "all"):
-        rows += arch(a.base or ("origin/main" if a.dimension == "all" else None), a.root)
+        rows += arch(a.base or ("origin/main" if a.dimension == "all" else None), a.root, a.spec)
     if a.dimension in ("perf", "all"):
-        rows += perf()
+        rows += perf(a.root, a.spec)
     if a.dimension == "all":
         rows += slop()
         print("decision4: runs in CI against the PR body, not locally")

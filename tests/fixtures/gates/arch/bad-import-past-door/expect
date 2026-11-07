@@ -1,0 +1,1 @@
+door: src/a.ts imports src/b-internal.ts

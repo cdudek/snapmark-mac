@@ -1,0 +1,11 @@
+{
+  "metrics": {
+    "erosion": 0.0,
+    "complex_functions": 0,
+    "max_complexity": 0,
+    "clone_ratio": 0.0,
+    "hits_per_kloc": 0.0
+  },
+  "hits": {},
+  "hotspots": {}
+}
