@@ -65,14 +65,20 @@ def audit(spec, workflow, root, offline):
         if not e:
             continue
         job = e.get("job")
-        name = jobs.get(job, {}).get("name", job) if job else None
+        row_workflow = yaml.safe_load((root / e["workflow"]).read_text()) if e.get("workflow") else workflow
+        row_jobs = row_workflow["jobs"]
+        row_summary = row_jobs.get("check", {}).get("needs", [])
+        row_last = last
+        if e.get("workflow") and not offline and repo:
+            row_last = last_jobs(repo, e["workflow"])
+        name = row_jobs.get(job, {}).get("name", job) if job else None
         row = {
             "id": f["id"],
             "required": bool(e.get("required", True)),
             "installed": yes_no(all((root / t).exists() if t.startswith("node_modules/") else shutil.which(t) for t in e.get("tools", []))),
             "configured": yes_no(all((root / c).exists() for c in e.get("config", []))),
-            "executed": yes_no(job in jobs and (job == "check" or job in summary or not e.get("required", True))),
-            "passed": "unknown" if last is None or name not in last else yes_no(last[name] in ("success", "skipped")),
+            "executed": yes_no(job in row_jobs and (e.get("workflow") or job == "check" or job in row_summary or not e.get("required", True))),
+            "passed": "unknown" if row_last is None or name not in row_last else yes_no(row_last[name] in ("success", "skipped")),
         }
         rows.append(row)
     ruleset = "unknown" if offline or not repo else ruleset_requires(repo, "check")

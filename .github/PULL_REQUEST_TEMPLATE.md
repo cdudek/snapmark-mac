@@ -1,3 +1,17 @@
+<!--
+Decision4 writing rules:
+- Source: Habitat Thinking Decision4 v1.0.1, pinned at 4429f821780655f253a954b2659bf38e7b9d5517.
+- Read boundary-map.yaml; use the highest decision class, at or above its floor. Unmapped or unsure: higher class and log a map gap.
+- Select exactly one bold class with its one colour circle: 🟢 Undo, 🟡 Repair, 🟠 Migrate, 🔴 Answer.
+- Explain who has to put it right and what it takes. Do not invent recovery steps, backups or preserved work.
+- Repair and above need Recovery steps as a standalone bold line and a top-level numbered list. Undo may omit them.
+- Responsible for recovery is a role; at Answer it must be a named person or @handle.
+- Classification change is None unless changed; record from -> to, who raised/lowered it and why. Never lower silently.
+- Keep Decision record at Repair (Chose / Over / Because / Commits us to), Migrate (Options: at least two real options, or one Forced with its Constraint), Answer (labelled Evidence and Challenges; no recommendation). Omit it at Undo.
+- At Answer label every evidence item observed / inferred / asked / unknown. A person with standing writes the decision.
+- Unattended runs close only Undo; above Undo hand back and stop unless the owner has explicitly authorized the work.
+- Preserve repo-specific human checklists and use H2 headings throughout.
+-->
 ## What
 
 <one or two sentences: what changes for the user or the system>
@@ -24,30 +38,31 @@ Fixes <LINEAR-ID>
 
 - <what this PR deliberately does not do>
 
-## Decision4
+## How hard is it to undo this PR after merging?
 
-If this turns out to be wrong, what does it take to put right? Take the class from `boundary-map.yaml`; a change takes the class of its highest decision. When unsure, take the higher class. Fill the fields below; delete the lines and blocks that do not apply to your class. The `decision4` check reads them.
+**🟡 Repair** — <who has to put it right and what it takes, concrete>
 
-Decision-Class: <Undo | Repair | Migrate | Answer>
-Put-right: <Repair and above: what it takes to put this right>
-Answerer: <Migrate and Answer: who answers for it>
-Class-Change: <only if lowered: `<from> -> <to>; lowered by <who>; <why>`>
+**Recovery steps**
 
-**Choice story (Repair)**
+1. <first step>
+2. <next step>
 
-- Chose:
-- Over:
-- Because:
-- Commits us to:
+- **Responsible for recovery:** <role; at Answer a named person>
+- **Classification change:** None
 
-**Options (Migrate)**
+## Decision record
 
-- Option 1:
-- Option 2:
-- Or one option stated as forced, with the constraint that forces it:
+- **Chose:** <what was decided>
+- **Over:** <viable alternative>
+- **Because:** <reason>
+- **Commits us to:** <what this ties the team to>
 
-**Evidence and challenges (Answer)**
+<details>
+<summary>Recovery levels</summary>
 
-- Observed / inferred / asked / unknown:
-- Challenges:
-- No recommendation.
+Undo — a revert puts it right
+Repair — real work, contained to this team
+Migrate — coordinated change involving other people
+Answer — someone outside the team with standing to ask is affected, and nothing unmakes it
+
+</details>
