@@ -2,44 +2,35 @@ name: CI
 
 on:
   pull_request:
-    # edited and labeled too, so retitling a PR or adding the major label re-runs the checks
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
-  pull-requests: read # `gh pr diff` in the changes job
+  pull-requests: read # changed paths and Decision4
+  actions: read # non-blocking enforcement audit
 
 env:
-  SHARDS: '1' # the smoke test is not sharded
+  SHARDS: '1'
 
-# One job per check, so a PR shows exactly which one failed (owner, 2026-10-27).
-# Ubuntu, not macOS: macOS minutes cost 10x on private repos. Releases build on macOS.
-#
-# If no code or config was touched, no check runs (owner, 2026-11-01). The `changes` job reads sdlc.json `ciPaths` and
-# sets a flag per step: lint (format, lint, typecheck), unit, e2e (the smoke test). A README, docs, changes/ or
-# screenshot PR costs `changes`, `pr-title` and `check`. Do not use workflow-level `paths-ignore`: a workflow that never
-# starts leaves the required `check` pending and the PR unmergeable. Safety net: a push to main, and a PR into main
-# or from milestone/* that changes any code or config, run every step. Reference: sdlc-run references/ci-blueprint.md.
+# One runner, checkout and dependency install. Named steps identify the failing gate.
+# Electron smoke needs a VM (sysctl / sandbox), so this job cannot use ubuntu-slim.
+# Keep path filtering inside the job so the required `check` always reports.
 jobs:
-  changes:
-    name: Changed paths
+  check:
+    name: check
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      lint: ${{ steps.f.outputs.lint }}
-      unit: ${{ steps.f.outputs.unit }}
-      build: ${{ steps.f.outputs.build }}
-      deploy: ${{ steps.f.outputs.deploy }}
-      full: ${{ steps.f.outputs.full }}
-      matrix: ${{ steps.f.outputs.matrix }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
-          sparse-checkout: sdlc.json # only the path lists are needed
-          sparse-checkout-cone-mode: false
       - id: f
         env:
           GH_TOKEN: ${{ github.token }}
@@ -124,18 +115,16 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           # <<< changes-script
 
-  pr-title:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
       # The squash commit takes the PR title, and semantic-release reads it to choose the next version,
       # so the title must be a Conventional Commit: feat: → minor, fix: → patch, feat!: → major, docs:/chore:/ci: → none.
-      - uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
+      - if: github.event_name == 'pull_request'
+        uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # A major version is the owner's call: "!" in the title or BREAKING CHANGE in the body (the squash commit's
       # message, as a "BREAKING CHANGE:" line) needs the "major" label, and only people with write access to the repo can add labels.
-      - env:
+      - if: github.event_name == 'pull_request'
+        env:
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
           MAJOR_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'major') }}
@@ -148,73 +137,32 @@ jobs:
             echo "Major release approved by the 'major' label."
           fi
 
-  format:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.f.outputs.lint == 'true' || steps.f.outputs.unit == 'true' || steps.f.outputs.matrix != '[]'
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run format:check
-
-  lint:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-
-  typecheck:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-
-  # CQ-16, CI-24: anti-slop rules plus complexity and clone metrics against the merge base, its own job and part of `check`.
-  # Cheap: ubuntu, no Electron download (scripts and the binary are skipped). Hotspots live in .fitness/slop-baseline.json.
-  slop:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: write # the sticky delta comment; a failed comment never fails the job
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # the merge base
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - name: Tools
+      - name: Install dependencies once
+        if: steps.f.outputs.lint == 'true' || steps.f.outputs.unit == 'true' || steps.f.outputs.matrix != '[]'
+        run: npm ci
+      - name: Python gate tools
+        if: steps.f.outputs.lint == 'true' || steps.f.outputs.unit == 'true' || github.event_name == 'pull_request'
         run: |
           python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1
+          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3 check-jsonschema==0.39.0
           echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
+      - name: Format
+        if: steps.f.outputs.lint == 'true'
+        run: npm run format:check
+      - name: Lint
+        if: steps.f.outputs.lint == 'true'
+        run: npm run lint
+      - name: Typecheck
+        if: steps.f.outputs.lint == 'true'
+        run: npm run typecheck
+
       - name: Slop gate
+        if: steps.f.outputs.lint == 'true'
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: |
@@ -222,32 +170,9 @@ jobs:
           python3 scripts/slop.py ${BASE:+--base "$BASE"} --summary "$RUNNER_TEMP/slop.md" || rc=$?
           cat "$RUNNER_TEMP/slop.md" >> "$GITHUB_STEP_SUMMARY"
           exit "${rc:-0}"
-      - name: Post the deltas on the PR
-        if: always() && github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh pr comment "$PR" --body-file "$RUNNER_TEMP/slop.md" --edit-last --create-if-none
 
-  # STR-3, CI-23: architecture.yaml is the policy; imports are checked against it. Cycles hard-fail; the score may not drop below
-  # 90 or the merge base's. Python and PyYAML only: no install, no build.
-  arch:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # the merge base
-          persist-credentials: false
-      - name: Tools
-        run: |
-          python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3
       - name: Boundaries and score
+        if: steps.f.outputs.lint == 'true'
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: |
@@ -255,86 +180,23 @@ jobs:
           { echo '```'; "$RUNNER_TEMP/v/bin/python" scripts/fitness.py arch ${BASE:+--base "$BASE"} || rc=$?; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           exit "${rc:-0}"
 
-  # CI-23: the app bundle budget. Measures what electron-builder packs from dist/src (gzip), not the DMG: building and signing that
-  # needs the macOS runner, which only the release does. perf.web is not applicable (no pages).
-  perf:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npm run build
-      - name: Tools
-        run: |
-          python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3
+      - name: Build and bundle budgets
+        if: steps.f.outputs.lint == 'true'
+        run: npm run build
       - name: Bundle budgets
+        if: steps.f.outputs.lint == 'true'
         run: |
           { echo '```'; "$RUNNER_TEMP/v/bin/python" scripts/fitness.py perf || rc=$?; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           exit "${rc:-0}"
 
-  # TEST-19: every gate has bad-* and good-* fixtures in tests/fixtures/gates; a gate that stops failing its bad cases fails here.
-  gates-test:
-    needs: changes
-    if: needs.changes.outputs.lint == 'true' || needs.changes.outputs.unit == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - name: Tools
-        run: |
-          python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3
-          echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
-      - run: python3 scripts/gates_test.py
+      - name: Gate fixtures
+        if: steps.f.outputs.lint == 'true' || steps.f.outputs.unit == 'true'
+        run: python3 scripts/gates_test.py
 
-  # CI-30: a non-blocking report. Does every rule that names a check have the tool, the config, a job in `check`, and a green run?
-  # The monthly enforcement-audit.yml runs the same script and opens an issue on gaps (CI-31).
-  enforcement-audit:
-    needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.lint == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    continue-on-error: true
-    permissions:
-      contents: read
-      actions: read # the last run of each job on main
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --ignore-scripts
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - name: Tools
+      - name: Enforcement audit
+        if: github.event_name == 'pull_request' && steps.f.outputs.lint == 'true'
+        continue-on-error: true
         run: |
-          python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q lizard==1.25.1 pyyaml==6.0.3
-          echo "$RUNNER_TEMP/v/bin" >> "$GITHUB_PATH"
-      - run: |
           python3 scripts/enforcement_audit.py --summary "$RUNNER_TEMP/audit.md" || rc=$?
           cat "$RUNNER_TEMP/audit.md" >> "$GITHUB_STEP_SUMMARY"
           exit "${rc:-0}"
@@ -342,54 +204,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
-  unit:
-    needs: changes
-    if: needs.changes.outputs.unit == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm test
+      - name: Unit tests
+        if: steps.f.outputs.unit == 'true'
+        run: npm test
 
-  e2e:
-    needs: changes
-    if: needs.changes.outputs.matrix != '[]' # the smoke test: a full run only
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
       # Ubuntu 24.04 blocks the unprivileged user namespaces Electron's sandbox needs.
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - run: xvfb-run -a npm run smoke
+      - name: Enable Electron sandbox
+        if: steps.f.outputs.matrix != '[]'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Electron smoke
+        if: steps.f.outputs.matrix != '[]'
+        run: xvfb-run -a npm run smoke
 
-  # Decision4 v1.0.1 (https://github.com/Habitat-Thinking/decision4/blob/v1.0.1/DECISION4.md): the map is valid and the PR body meets the
-  # floor of the paths the PR changes. Re-runs when the body is edited (see the pull_request types above).
-  decision4:
-    name: decision4
-    # bot PRs cannot carry the fields
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Tools
-        run: |
-          python3 -m venv "$RUNNER_TEMP/v"
-          "$RUNNER_TEMP/v/bin/pip" install -q pyyaml==6.0.3 check-jsonschema==0.39.0
       - name: boundary-map.yaml matches the pinned schema
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
         # Decision4 v1.0.1, pinned by commit SHA (a tag can move)
         run: '"$RUNNER_TEMP/v/bin/check-jsonschema" --schemafile https://raw.githubusercontent.com/Habitat-Thinking/decision4/4429f821780655f253a954b2659bf38e7b9d5517/boundary-map.schema.json boundary-map.yaml'
       - name: PR body meets the floor of the changed paths
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
         env:
           BODY: ${{ github.event.pull_request.body }}
           GH_TOKEN: ${{ github.token }}
@@ -436,18 +268,3 @@ jobs:
           if ORDER.index(eff) >= 2 and not filled("Answerer"): fail(f"class {eff} needs a filled 'Answerer:' line")
           print(f"Decision4 class: {eff}")
           PY
-
-  # The main ruleset requires a check named "check"; it passes only when no job above failed. A job skipped by `changes`
-  # (no code or config touched) and pr-title on pushes to main count as passed.
-  check:
-    if: always()
-    needs: [changes, pr-title, format, lint, typecheck, slop, arch, perf, gates-test, unit, e2e, decision4]
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "Results: $RESULTS"
-          for r in $RESULTS; do
-            case "$r" in success|skipped) ;; *) echo "::error::A required job did not pass ($r)."; exit 1 ;; esac
-          done

@@ -102,8 +102,8 @@ fitness:
     enforcement:
       {
         checker: scripts/fitness.py,
-        job: arch,
-        invoked_by: ci job arch and npm run arch,
+        job: check,
+        invoked_by: ci step arch and npm run arch,
         required: true,
         config: [architecture.yaml, .fitness/arch-baseline.json],
         tools: [python3],
@@ -113,7 +113,7 @@ fitness:
     metric: 100 * (1 - violating_edges / all_cross_module_edges); a cycle is a hard fail
     gate: score >= 90 and >= the merge base's score
     enforcement:
-      { checker: scripts/fitness.py, job: arch, invoked_by: ci job arch, required: true, config: [architecture.yaml], tools: [python3] }
+      { checker: scripts/fitness.py, job: check, invoked_by: ci step arch, required: true, config: [architecture.yaml], tools: [python3] }
   - id: quality.slop
     target: slop
     tool: scripts/slop.py (anti-slop rules, lizard, jscpd)
@@ -121,8 +121,8 @@ fitness:
     enforcement:
       {
         checker: scripts/slop.py,
-        job: slop,
-        invoked_by: ci job slop and npm run slop,
+        job: check,
+        invoked_by: ci step slop and npm run slop,
         required: true,
         config: [.oxlintrc.json, .fitness/slop-baseline.json, tools/oxlint/anti-slop/index.ts],
         tools: [python3, lizard, node_modules/.bin/oxlint],
@@ -134,8 +134,8 @@ fitness:
     enforcement:
       {
         checker: scripts/fitness.py,
-        job: perf,
-        invoked_by: ci job perf and npm run perf,
+        job: check,
+        invoked_by: ci step perf and npm run perf,
         required: true,
         config: [architecture.yaml],
         tools: [python3, node_modules/.bin/tsc],
@@ -149,12 +149,12 @@ fitness:
     gate: not applicable, the product has no web pages (Lighthouse needs a URL); prints "not applicable" and exits 0
   - id: decision4
     target: decision4
-    gate: CI-26, the `decision4` job reads the PR body; it cannot run locally
+    gate: CI-26, the Decision4 step reads the PR body; gate fixtures also run locally
     enforcement:
       {
-        checker: the decision4 job in .github/workflows/ci.yml,
-        job: decision4,
-        invoked_by: ci job decision4,
+        checker: the Decision4 step in .github/workflows/ci.yml,
+        job: check,
+        invoked_by: ci step decision4,
         required: true,
         config: [boundary-map.yaml, .github/PULL_REQUEST_TEMPLATE.md],
         tools: [python3],
@@ -166,8 +166,8 @@ fitness:
     enforcement:
       {
         checker: scripts/gates_test.py,
-        job: gates-test,
-        invoked_by: ci job gates-test and npm run gates-test,
+        job: check,
+        invoked_by: ci step gates-test and npm run gates-test,
         required: true,
         config: [tests/fixtures/gates],
         tools: [python3, lizard, node_modules/.bin/oxlint],
@@ -179,8 +179,8 @@ fitness:
     enforcement:
       {
         checker: scripts/enforcement_audit.py,
-        job: enforcement-audit,
-        invoked_by: ci job enforcement-audit and .github/workflows/enforcement-audit.yml,
+        job: check,
+        invoked_by: ci step enforcement-audit and .github/workflows/enforcement-audit.yml,
         required: false,
         config: [architecture.yaml],
         tools: [python3],

@@ -6,7 +6,7 @@
 Reads the `enforcement` row of every fitness id in architecture.yaml and reports four states per row:
   installed   every tool in `tools` resolves (a node_modules/ path must exist, anything else must be on PATH)
   configured  every file in `config` exists
-  executed    `job` exists in the workflow and, for a required row, feeds the `check` summary job
+  executed    `job` exists in the workflow and, for a required row, is `check` itself or feeds the `check` summary job
   passed      the job's last run on the default branch succeeded (gh api); `unknown` without gh or a token
 Plus once: does the branch ruleset require `check` (`unknown` without access).
 A gap is a required row with a "no" in any state, or a ruleset that does not require `check`. Exit 1 on a gap.
@@ -71,7 +71,7 @@ def audit(spec, workflow, root, offline):
             "required": bool(e.get("required", True)),
             "installed": yes_no(all((root / t).exists() if t.startswith("node_modules/") else shutil.which(t) for t in e.get("tools", []))),
             "configured": yes_no(all((root / c).exists() for c in e.get("config", []))),
-            "executed": yes_no(job in jobs and (job in summary or not e.get("required", True))),
+            "executed": yes_no(job in jobs and (job == "check" or job in summary or not e.get("required", True))),
             "passed": "unknown" if last is None or name not in last else yes_no(last[name] in ("success", "skipped")),
         }
         rows.append(row)

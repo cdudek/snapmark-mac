@@ -1,10 +1,9 @@
 name: Release
 
-# A merge to main only reports the next version; publishing is manual (owner, 2026-10-27):
-# Actions > Release > Run workflow on main. The commit messages since the last release decide the version.
+# Publish only for a version tag or an explicit manual run on main.
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -15,14 +14,10 @@ concurrency: release
 
 jobs:
   version:
-    # semantic-release reads the Conventional Commit messages since the last release tag:
-    #   fix: / perf:                  -> patch  (0.4.0 -> 0.4.1)
-    #   feat:                         -> minor  (0.4.1 -> 0.5.0)
-    #   feat!: or "BREAKING CHANGE:"  -> major  (-> 1.0.0)
-    #   docs: chore: ci: test: ...    -> no release
-    # This cheap Ubuntu job only asks for the next version (dry run) and shows it in the run summary;
-    # the macOS job runs only on a manual run from main, and only when there is a version to publish.
-    runs-on: ubuntu-latest
+    # Tags declare the version; dispatch on main keeps Conventional Commit version selection.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
@@ -33,11 +28,24 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - id: v
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
         run: |
+          if [ "$EVENT" = push ]; then
+            if ! printf '%s' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Use a release tag vX.Y.Z"; exit 1
+            fi
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "Release: **$TAG**" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           out="$(npx semantic-release --dry-run)"
           echo "$out"
           version="$(printf '%s\n' "$out" | sed -n 's/.*The next release version is \([0-9][0-9.]*\).*/\1/p' | tail -1)"
@@ -50,7 +58,7 @@ jobs:
 
   release:
     needs: version
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.version.outputs.version != ''
+    if: needs.version.outputs.version != ''
     runs-on: macos-latest
     permissions:
       contents: write
@@ -129,7 +137,7 @@ jobs:
           gcloud storage cp --cache-control=no-cache release/latest-mac.yml gs://snapmark-updates/mac/latest-mac.yml
           old="$(gcloud storage ls gs://snapmark-updates/mac/ | sh scripts/prune-releases.sh)"
           if [ -n "$old" ]; then printf '%s\n' "$old" | xargs gcloud storage rm; fi
-      # Publish the version the dry run chose, at the commit that was built. Not `semantic-release` itself:
+      # Publish the version selected from the tag or dry run, at the commit that was built. Not `semantic-release` itself:
       # it refuses to publish once main has moved on, which a merge during this ~8 minute build does,
       # and it then exits 0, so a release silently went missing.
       - name: Publish GitHub release
