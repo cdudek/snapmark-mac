@@ -112,3 +112,13 @@ Rules:
 - A change takes the class of its highest decision.
 - Escalate freely and say who it pulls in. Never lower a class silently.
 - Unattended runs close only Undo. Above Undo, hand back and stop.
+
+## Decision4 records (§7 and §9)
+
+- **Repair:** Record Chose / Over / Because / Commits us to in the PR.
+- **Migrate:** Record Class with put-right, Who answers, Commits us to, and Chosen by: <person>.
+  An agent drafts at least two viable options, each with its commitments, or one Forced option with its Constraint; the accountable owner chooses.
+- **Answer:** Supply labelled Evidence (observed / inferred / asked / unknown) and Challenges, with no recommendation or ranking; general knowledge is not evidence about the case.
+- **Answer record:** Include Title, Status, Context, Decision, Class with put-right, Who answers, Rejected alternative (viable), Provenance, Class history, Commits us to, Last validated, and Revisit when (a condition).
+- **Person-authored fields:** Only a person with standing writes Answer Decision and Commits us to; agents leave `<person writes>` placeholders, which fail validation until filled.
+- **Timing:** Write the record before approval; record what the agent supplied and what the person chose, and keep it current through revalidation, supersession or retirement.
