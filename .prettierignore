@@ -10,3 +10,7 @@ tools/oxlint/anti-slop
 
 # negative fixtures are bad on purpose (TEST-19)
 tests/fixtures/gates
+
+# Verbatim upstream Decision4 contract and PR section.
+AGENTS.md
+.github/PULL_REQUEST_TEMPLATE.md

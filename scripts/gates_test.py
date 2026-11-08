@@ -5,7 +5,6 @@
 
 tests/fixtures/gates/<gate>/<case>/ holds one case. A bad case may carry `expect`, a text its output must contain,
 so it fails for the reason it is named after. Needs what the gates need: PyYAML, lizard, node 22 and `npm ci`.
-  decision4    body.md + files.txt   the python of the `decision4` job in ci.yml, run on a fake PR body
   slop         head/ [base/] baseline.json   scripts/slop.py --root head [--base-root base]
   arch         spec.yaml + src/      scripts/fitness.py arch --root case
   perf         spec.yaml + bundle/    scripts/fitness.py perf --root case
@@ -23,20 +22,8 @@ FIXTURES = ROOT / "tests/fixtures/gates"
 PY = sys.executable
 
 
-def decision4_script():
-    """The python heredoc of the decision4 job, dedented: the fixtures test the code CI runs, not a copy."""
-    lines = (ROOT / ".github/workflows/ci.yml").read_text().splitlines()
-    start = next(i for i, line in enumerate(lines) if line.rstrip().endswith("- <<'PY'")) + 1
-    end = next(i for i in range(start, len(lines)) if lines[i].strip() == "PY")
-    indent = len(lines[end]) - len(lines[end].lstrip())
-    return "\n".join(line[indent:] for line in lines[start:end]) + "\n"
-
-
 def command(gate, case, tmp):
     report = str(Path(tmp) / "report.json")
-    if gate == "decision4":
-        env = {**os.environ, "BODY": (case / "body.md").read_text(), "FILES": str(case / "files.txt")}
-        return subprocess.run([PY, "-"], input=decision4_script(), cwd=ROOT, env=env, capture_output=True, text=True)
     if gate == "slop":
         cmd = [PY, "scripts/slop.py", "--root", str(case / "head"), "--baseline", str(case / "baseline.json"), "--report", report]
         if (case / "base").exists():
@@ -52,8 +39,8 @@ def command(gate, case, tmp):
 
 def main():
     present = {p.name for p in FIXTURES.iterdir() if p.is_dir()}
-    if {"decision4", "slop", "arch", "perf", "enforcement"} - present:
-        sys.exit(f"gates-test: no fixtures for {sorted({'decision4', 'slop', 'arch', 'perf', 'enforcement'} - present)}")
+    if {"slop", "arch", "perf", "enforcement"} - present:
+        sys.exit(f"gates-test: no fixtures for {sorted({'slop', 'arch', 'perf', 'enforcement'} - present)}")
     gates = sys.argv[1:] or sorted(present)
     failures = 0
     for gate in gates:
