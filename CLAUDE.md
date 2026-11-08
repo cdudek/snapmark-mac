@@ -111,3 +111,9 @@ Before every push, run `npm run format:check`, `npm run lint`, `npm run typechec
 Read the exact failing job or test, reproduce it locally, and rerun that test plus the directly affected suite until green. For an E2E change, iterate on the changed spec and its neighbours. Then run the full local gate once, batch the fixes into one push, and do not retry the whole pipeline for one failure.
 
 To release a reviewed commit on main, choose its version and run `git tag vX.Y.Z && git push --tags`. The release workflow reads the version from the tag; ordinary main pushes never start it. Alternatively, use **Actions → Release → Run workflow** on main: Conventional Commits since the last release select the next version (fix/perf = patch, feat = minor, breaking = major). A manual run with no pending release stops before macOS starts. Both paths retain signing, notarization, update-bucket upload and GitHub release publishing.
+
+## Node tooling
+
+Use `nvm use` before local checks. `.nvmrc` is the Node 24 tooling version source;
+CI reads it with `node-version-file` and `engines.node` constrains the same major.
+Electron bundles its own Node runtime.

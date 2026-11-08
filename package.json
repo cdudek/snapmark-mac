@@ -30,5 +30,8 @@
   "devDependencies": {
     "@oxlint/plugins": "1.92.0",
     "oxlint": "1.92.0"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }
