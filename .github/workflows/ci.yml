@@ -24,10 +24,15 @@ env:
 jobs:
   check:
     name: check
-    if: github.event.pull_request.draft == false
+    # Never skipped: a skipped required check counts as passed, so a draft would merge unchecked.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Drafts wait for ready
+        if: github.event.pull_request.draft == true
+        run: |
+          echo "draft: CI runs once the PR is ready"
+          exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
