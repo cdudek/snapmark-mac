@@ -1,18 +1,18 @@
 name: CI
 
+# Runs once per ready (non-draft) pull request, never on push. Drafts cost nothing.
+# Re-run it by hand after changing the PR title or the `major` label: those events do not trigger it.
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
-  push:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
-  pull-requests: read # changed paths and Decision4
+  pull-requests: read # changed paths (gh pr diff)
   actions: read # non-blocking enforcement audit
 
 env:
@@ -24,6 +24,7 @@ env:
 jobs:
   check:
     name: check
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
