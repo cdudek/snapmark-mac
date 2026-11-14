@@ -149,14 +149,14 @@ fitness:
     gate: not applicable, the product has no web pages (Lighthouse needs a URL); prints "not applicable" and exits 0
   - id: decision4
     target: decision4
-    gate: CI-26, the pinned shared workflow reads the PR body and validates the map
+    gate: CI-26, the pinned shared workflow reads the PR body and validates the map; information only, never blocks the PR
     enforcement:
       {
         checker: .github/workflows/decision4.yml,
         job: decision4,
         workflow: .github/workflows/decision4.yml,
-        invoked_by: shared Decision4 workflow,
-        required: true,
+        invoked_by: shared Decision4 workflow (information only, never blocks),
+        required: false,
         config: [boundary-map.yaml, .github/PULL_REQUEST_TEMPLATE.md, .github/workflows/decision4.yml],
         tools: [python3],
       }

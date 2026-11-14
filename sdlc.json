@@ -1,5 +1,5 @@
 {
-  "_comment": "Read by the run-sdlc skill, the hooks in .claude/hooks/ and the guardrail test. Commands run from the repo root; {file} is the edited file. docs/sdlc.md explains every key. Tracker: Beads (bd). E2E (smoke) runs only in the milestone checks, in the background (owner, 2026-10-25); CI runs it (under xvfb) on a full run: a PR into main or from milestone/* that changes code or config, and every push to main.",
+  "_comment": "Read by the run-sdlc skill, the hooks in .claude/hooks/ and the guardrail test. Commands run from the repo root; {file} is the edited file. docs/sdlc.md explains every key. Tracker: Beads (bd). E2E (smoke) runs only in the milestone checks, in the background (owner, 2026-10-25); CI runs it (under xvfb) on a full run: a ready PR into main or from milestone/* that changes code or config. CI runs only on ready (non-draft) PRs, never on push.",
   "linear": {
     "team": "",
     "project": ""

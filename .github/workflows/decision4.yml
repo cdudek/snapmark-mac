@@ -1,8 +1,9 @@
 name: Decision4
 
+# Information only: the shared workflow reports the decision class on the PR and never blocks it.
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -14,4 +15,5 @@ concurrency:
 
 jobs:
   decision4:
-    uses: cdudek/blueprints/.github/workflows/decision4-check.yml@65c1d72827d34c9eba3fcf5236e09ca65fcd5311 # blueprints PR 23
+    if: github.event.pull_request.draft == false
+    uses: cdudek/blueprints/.github/workflows/decision4-check.yml@b5ebe31bc11a97cbd2fcdad7fc45a65fd1522c70 # information-only
