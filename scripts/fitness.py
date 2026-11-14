@@ -180,7 +180,6 @@ def main():
         rows += perf(a.root, a.spec)
     if a.dimension == "all":
         rows += slop()
-        print("decision4: runs in CI against the PR body, not locally")
     for r in rows:
         print(f"{'ok  ' if r['pass'] else 'FAIL'} {r['id']}: {r['value']} (limit {r['threshold']})")
     (ROOT / a.report).write_text(json.dumps({"rows": rows, "pass": all(r["pass"] for r in rows)}, indent=2) + "\n")

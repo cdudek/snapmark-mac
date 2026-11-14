@@ -79,7 +79,7 @@ bd close <id>         # Complete work
 
 ## Local CI and releases
 
-Before every push, run `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run slop`, `npm run arch`, `npm run perf`, `npm run gates-test` and `npm run smoke` locally. Remote CI confirms a locally green change: it runs once per ready (non-draft) PR, never on push, and Decision4 is information only. Never push to find out which test fails.
+Before every push, run `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run slop`, `npm run arch`, `npm run perf`, `npm run gates-test` and `npm run smoke` locally. Remote CI confirms a locally green change: it runs once per ready (non-draft) PR, never on push, and Decision4 is an optional PR-body section with no CI check. Never push to find out which test fails.
 
 Read the exact failing job or test, reproduce it locally, and rerun that test plus the directly affected suite until green. For an E2E change, iterate on the changed spec and its neighbours. Then run the full local gate once, batch the fixes into one push, and do not retry the whole pipeline for one failure.
 
