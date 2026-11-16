@@ -28,8 +28,8 @@
   "author": "Calvin Dudek",
   "repository": "github:cdudek/snapmark-mac",
   "devDependencies": {
-    "@oxlint/plugins": "1.92.0",
-    "oxlint": "1.92.0"
+    "@oxlint/plugins": "1.93.0",
+    "oxlint": "1.93.0"
   },
   "engines": {
     "node": "24.x"
