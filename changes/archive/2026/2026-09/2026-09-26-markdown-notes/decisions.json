@@ -1,6 +1,0 @@
-{
-  "ticket": "beads snap-m6j — created 2026-09-25 from the owner's request",
-  "intent": "skip — the owner's words and decision of 2026-09-25 state it ('Notes + session view')",
-  "design": "none — one PR",
-  "decided_by": "agent, not asked: the step-0.5 dialog was skipped after the owner's 'get rocking then!' (2026-09-26), reusing the owner's answers of the four previous builds; flagged to the owner in the same reply"
-}

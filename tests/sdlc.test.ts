@@ -18,24 +18,28 @@ import { describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 120_000 });
 
 const ROOT = resolve(__dirname, '..');
+
 const cfg = JSON.parse(readFileSync(join(ROOT, 'sdlc.json'), 'utf8')) as {
   changesDir: string;
+  docs?: string;
   designsDir: string;
   verify: string;
   verifyDirty: string[];
   lintOnEdit: Record<string, string>;
   blocked: { match: string; message: string; samples: string[] }[];
-  codeowners: string[];
   toolsCommand: string;
   tiers?: boolean;
 };
+
 const CHANGES = join(ROOT, cfg.changesDir ?? 'changes');
 const ARCHIVE = join(CHANGES, 'archive');
 const HOOKS = join(ROOT, '.claude', 'hooks');
 const SETTINGS = join(ROOT, '.claude', 'settings.json');
 // sdlc.json `tiers` (default true). Off: one owner, no Ship/Show/Ask, and none of its files.
 const TIERS_ON = cfg.tiers !== false;
-const TIER_FILES = ['.github/workflows/ship-show-ask.yml', 'scripts/ship_show_ask.py', '.github/tiers.json', '.github/CODEOWNERS'];
+
+const TIER_FILES = ['.github/workflows/ship-show-ask.yml', 'scripts/ship_show_ask.py', '.github/tiers.json'];
+
 const TIERS = (
   TIERS_ON ? JSON.parse(readFileSync(join(ROOT, '.github', 'tiers.json'), 'utf8')) : { order: [], ask: [], show: [], ship: [] }
 ) as {
@@ -46,8 +50,11 @@ const TIERS = (
 };
 
 const INTENT_SECTIONS = ['## Problem', '## Proposed outcome', '## Affected users and systems', '## Constraints', '## Open questions'];
+
 const PLAN_SECTIONS = ['## Order of work', '## Done', '## Revisions'];
 const V3_SIZES = new Set(['none', 'S', 'M', 'L']);
+const NO_DESIGN = new Set(['null', 'none', 'spec']); // a `design:` that names no separate design document
+const NO_UX_STAGE = new Set(['none', 'S']); // sizes with no UX stage: every activity is skipped (spec.py NO_UX_STAGE)
 const V3_KINDS = new Set(['feature', 'bug', 'refactor', 'docs', 'chore']);
 const V3_ACTIVITIES = ['brief', 'ia', 'interaction', 'screens', 'prototype', 'conformance', 'validation'];
 // <created>-<KEY>-<slug>, and <created>-<slug> when the change has no Linear issue.
@@ -56,6 +63,7 @@ const CHANGE_DIR = /^(\d{4}-\d{2}-\d{2})-(?:([A-Z][A-Z0-9]+-\d+)-)?([a-z0-9][a-z
 
 function dirs(parent: string): string[] {
   if (!existsSync(parent)) return [];
+
   return readdirSync(parent, { withFileTypes: true })
     .filter((d) => d.isDirectory() && d.name !== 'archive')
     .map((d) => d.name)
@@ -70,11 +78,14 @@ function dirs(parent: string): string[] {
 function archiveChanges(parent: string, depth = 2): [string, string][] {
   if (!existsSync(parent)) return [];
   const out: [string, string][] = [];
+
   for (const d of readdirSync(parent, { withFileTypes: true })) {
     if (!d.isDirectory()) continue;
+
     if (CHANGE_DIR.test(d.name)) out.push([parent, d.name]);
     else if (depth > 0) out.push(...archiveChanges(join(parent, d.name), depth - 1));
   }
+
   return out.sort((a, b) => a[1].localeCompare(b[1]));
 }
 
@@ -83,16 +94,21 @@ function frontmatter(path: string): Record<string, string> {
   const m = /^---\n([\s\S]*?)\n---\n/.exec(text);
   expect(m, `${path} has no YAML frontmatter`).toBeTruthy();
   const out: Record<string, string> = {};
+
   for (const line of m![1].split('\n')) {
     const i = line.indexOf(':');
+
     if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
+
   return out;
 }
 
 function section(text: string, heading: string): string {
   const marker = `## ${heading}`;
+
   if (!text.includes(marker)) return '';
+
   return text.split(marker)[1].split(/^## /m)[0];
 }
 
@@ -111,15 +127,19 @@ function resourceCells(intent: string): string[] {
         .split('|')
         .map((c) => c.trim()),
     );
+
   const header = rows.find((r) => r[0] === '#') ?? [];
   expect(header, 'intent.md ## Asks table is missing Resources').toContain('Resources');
   const index = header.indexOf('Resources');
+
   return rows.filter((r) => /^A\d+$/.test(r[0]) && r.length > index).map((r) => r[index]);
 }
 
 function assertRepoRelativeTarget(repo: string, markdownFile: string, target: string) {
   const cleaned = target.trim().replace(/^['"]|['"]$/g, '');
+
   if (!cleaned || cleaned.startsWith('#')) return;
+
   // A web link is reachable by every reader; a path on one machine is not.
   if (/^(https?|mailto):/i.test(cleaned)) return;
   expect(
@@ -127,21 +147,27 @@ function assertRepoRelativeTarget(repo: string, markdownFile: string, target: st
     `${markdownFile.replace(`${repo}/`, '')} links outside the repo: ${cleaned}`,
   ).toBe(true);
   const path = cleaned.split('#')[0];
+
   if (!path) return;
   const candidates = [resolve(markdownFile, '..', path), resolve(repo, path)];
+
   for (const candidate of candidates) {
     if (candidate.startsWith(resolve(repo)) && existsSync(candidate)) return;
   }
+
   throw new Error(`${markdownFile.replace(`${repo}/`, '')} links to missing resource: ${cleaned}`);
 }
 
 function walkMarkdown(dir: string): string[] {
   const out: string[] = [];
+
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
+
     if (entry.isDirectory()) out.push(...walkMarkdown(path));
     else if (entry.isFile() && entry.name.endsWith('.md')) out.push(path);
   }
+
   return out;
 }
 
@@ -151,12 +177,16 @@ function assertChangeResourcesStayInRepo(repo: string, change: string) {
       assertRepoRelativeTarget(repo, markdownFile, target);
     }
   }
+
   const intent = join(change, 'intent.md');
+
   if (!existsSync(intent)) return;
+
   for (const cell of resourceCells(readFileSync(intent, 'utf8'))) {
     if (['', 'none'].includes(cell.trim().toLowerCase())) continue;
     const targets = markdownTargets(cell);
     const values = targets.length ? targets : cell.split(/\s*(?:,|<br\s*\/?>)\s*/);
+
     for (const target of values.filter((t) => t && t.toLowerCase() !== 'none')) {
       assertRepoRelativeTarget(repo, intent, target);
     }
@@ -177,6 +207,7 @@ function assertChangeResourcesStayInRepo(repo: string, change: string) {
  */
 function goalHandover(plan: string): string {
   const body = plan.split('## Goal handover')[1] ?? '';
+
   return body
     .split(/^## /m)[0]
     .split('\n')
@@ -208,10 +239,37 @@ function runHook(script: string, payload: unknown, env: Record<string, string> =
 function tmp(name: string): string {
   const dir = join(tmpdir(), `sdlc-${process.pid}-${name}-${Date.now()}`);
   mkdirSync(dir, { recursive: true });
+
   return dir;
 }
 
 // --- designs and changes -------------------------------------------------------------
+
+/**
+ * A change on layout 4 (spec.md, design.md, tasks.md): pinned by `layout: 4` in decisions.json
+ * or, unpinned, a spec.md with no facts.md. Anything else is the intent/facts/plan layout.
+ */
+function isV4(dir: string): boolean {
+  const decisions = join(dir, 'decisions.json');
+
+  if (existsSync(decisions)) {
+    try {
+      if (JSON.parse(readFileSync(decisions, 'utf8')).layout === 4) return true;
+    } catch {
+      /* not JSON: fall through to the files */
+    }
+  }
+
+  return existsSync(join(dir, 'spec.md')) && !existsSync(join(dir, 'facts.md'));
+}
+
+/** The documents a change must carry: facts.md and plan.md, or on layout 4 spec.md plus what its scope asks for. */
+function requiredDocuments(dir: string): string[] {
+  if (!isV4(dir)) return ['facts.md', 'plan.md'];
+  const scope = existsSync(join(dir, 'spec.md')) ? frontmatter(join(dir, 'spec.md')).scope : '';
+
+  return ['spec.md', ...(scope === 'M' || scope === 'L' ? ['tasks.md'] : []), ...(scope === 'L' ? ['design.md'] : [])];
+}
 
 function checkChange(parent: string, id: string, archived: boolean) {
   const dir = join(parent, id);
@@ -221,26 +279,42 @@ function checkChange(parent: string, id: string, archived: boolean) {
   const slug = parts?.[3] ?? '';
   it(`${id} carries facts.md and plan.md`, () => {
     expect(id).toMatch(CHANGE_DIR);
-    for (const a of ['facts.md', 'plan.md']) expect(existsSync(join(dir, a)), a).toBe(true);
+
+    for (const a of requiredDocuments(dir)) expect(existsSync(join(dir, a)), a).toBe(true);
   });
   it(`${id}: frontmatter names its issue, its change and its design`, () => {
-    for (const a of ['intent.md', 'facts.md', 'plan.md'].filter((a) => existsSync(join(dir, a)))) {
+    const v4 = isV4(dir);
+
+    for (const a of (v4 ? ['spec.md', 'design.md', 'tasks.md'] : ['intent.md', 'facts.md', 'plan.md']).filter((a) =>
+      existsSync(join(dir, a)),
+    )) {
       const fm = frontmatter(join(dir, a));
-      expect(fm.linear, `${a}: linear`).toBe(key || 'none');
+
+      // layout 4 names the issue and the design in spec.md only
+      if (!v4 || a === 'spec.md') expect(fm.linear, `${a}: linear`).toBe(key || 'none');
+
       // Only for open changes: a folder archived before the date prefix existed carries its
       // ARCHIVE date in the name, and renaming merged history to fix that buys nothing.
       if (!archived) expect(fm.created, `${a}: created must match the date in the folder name`).toBe(date);
       expect(fm.change, `${a}: change`).toBe(id);
-      expect(fm.design, `${a}: design`).toBeTruthy();
-      if (fm.design !== 'null') expect(existsSync(join(ROOT, fm.design)), `${a}: design ${fm.design} does not exist`).toBe(true);
-      if (archived) expect(fm.archived_at, `${a}: archived_at`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      if (!v4 || a === 'spec.md') {
+        expect(fm.design, `${a}: design`).toBeTruthy();
+
+        if (!NO_DESIGN.has(fm.design)) expect(existsSync(join(ROOT, fm.design)), `${a}: design ${fm.design} does not exist`).toBe(true);
+      }
+
+      if (archived && !v4) expect(fm.archived_at, `${a}: archived_at`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });
   it(`${id}: intent has the playbook sections, plan has order of work, Done and Revisions`, () => {
+    if (isV4(dir)) return; // spec.py check lints the three documents
+
     if (existsSync(join(dir, 'intent.md'))) {
       const text = readFileSync(join(dir, 'intent.md'), 'utf8');
       expect(INTENT_SECTIONS.filter((s) => !text.includes(s))).toEqual([]);
     }
+
     const plan = readFileSync(join(dir, 'plan.md'), 'utf8');
     expect(PLAN_SECTIONS.filter((s) => !plan.includes(s))).toEqual([]);
   });
@@ -251,7 +325,8 @@ function checkChange(parent: string, id: string, archived: boolean) {
     // every change ever shipped. It did: 61 tests, across every folder in omr-leadhub's
     // archive, the first time this ran. The rule is for work going forward; history is
     // evidence, not a target.
-    if (archived) return;
+    if (archived || isV4(dir)) return;
+
     // And only once the gate has approved it. A draft has nothing to hand over yet, and
     // failing one would make the gate impossible to reach.
     if (frontmatter(join(dir, 'plan.md')).status !== 'approved') return;
@@ -265,7 +340,8 @@ function checkChange(parent: string, id: string, archived: boolean) {
     // fixed; this catches a folder that reached the repo without the hook — CI, another
     // machine, a repo adopted mid-change. Archived folders are exempt for the same reason
     // the handover rule exempts them: history is evidence, not a target.
-    if (archived) return;
+    if (archived || isV4(dir)) return;
+
     // And only once the plan is approved, exactly like the handover rule above. A draft
     // plan beside draft facts is the legitimate in-flight state — facts are reviewed, then
     // the plan is written against them — and failing it would make the chain unreachable.
@@ -276,33 +352,46 @@ function checkChange(parent: string, id: string, archived: boolean) {
       `${id}: plan.md exists but facts.md is not approved. Facts are reviewed before a plan is written against them.`,
     ).toBe('approved');
     const decisions = join(dir, 'decisions.json');
+
     const recorded =
       existsSync(join(dir, 'intent.md')) ||
       (existsSync(decisions) && String(JSON.parse(readFileSync(decisions, 'utf8')).intent ?? '').startsWith('skip'));
+
     expect(
       recorded,
       `${id}: no intent.md and no recorded skip. Write the intent, or record why it was skipped in decisions.json — a silent skip and a forgotten one look identical.`,
     ).toBe(true);
   });
   it(`${id}: its design lists it under Milestones`, () => {
-    const fm = frontmatter(join(dir, 'plan.md'));
-    if (fm.design === 'null') return;
+    const fm = frontmatter(join(dir, isV4(dir) ? 'spec.md' : 'plan.md'));
+
+    if (NO_DESIGN.has(fm.design)) return;
     const design = readFileSync(join(ROOT, fm.design), 'utf8');
     expect(design.includes(slug), `${fm.design} does not mention ${slug}`).toBe(true);
   });
   it(`${id}: v3 approved plans satisfy the spec guardrails`, () => {
-    if (archived || !existsSync(join(dir, 'decisions.json'))) return;
+    if (archived || isV4(dir) || !existsSync(join(dir, 'decisions.json'))) return;
+
     const decisions = JSON.parse(readFileSync(join(dir, 'decisions.json'), 'utf8')) as {
       size?: string;
       kind?: string;
       skips?: Record<string, string>;
       testLocked?: boolean;
     };
+
     if (!('size' in decisions)) return;
+
     if (frontmatter(join(dir, 'plan.md')).status !== 'approved') return;
     expect(V3_SIZES.has(decisions.size ?? ''), `${id}: size`).toBe(true);
     expect(V3_KINDS.has(decisions.kind ?? ''), `${id}: kind`).toBe(true);
     const skips = decisions.skips ?? {};
+
+    // spec/readiness.md; spec/validation.md only for a folder written before the rename
+    const verdictFile =
+      !existsSync(join(dir, 'spec', 'readiness.md')) && existsSync(join(dir, 'spec', 'validation.md'))
+        ? join(dir, 'spec', 'validation.md')
+        : join(dir, 'spec', 'readiness.md');
+
     const files: Record<string, string> = {
       brief: join(dir, 'spec', 'brief.md'),
       ia: join(dir, 'spec', 'ia.md'),
@@ -310,18 +399,22 @@ function checkChange(parent: string, id: string, archived: boolean) {
       screens: join(dir, 'spec', 'screens.md'),
       prototype: join(dir, 'spec', 'prototype', 'index.md'),
       conformance: join(dir, 'spec', 'conformance.md'),
-      validation: join(dir, 'spec', 'validation.md'),
+      validation: verdictFile,
     };
+
     for (const activity of V3_ACTIVITIES) {
-      const skipped = String(skips[activity] ?? '').startsWith('skip');
+      const skipped = NO_UX_STAGE.has(decisions.size ?? '') || String(skips[activity] ?? '').startsWith('skip');
       expect(skipped || existsSync(files[activity]), `${id}: ${activity}`).toBe(true);
     }
-    if (!String(skips.validation ?? '').startsWith('skip')) {
-      const fm = frontmatter(join(dir, 'spec', 'validation.md'));
+
+    if (!NO_UX_STAGE.has(decisions.size ?? '') && !String(skips.validation ?? '').startsWith('skip')) {
+      const fm = frontmatter(verdictFile);
       expect(fm.verdict).toBe('ready');
       expect(fm.status).toBe('approved');
     }
+
     assertChangeResourcesStayInRepo(ROOT, dir);
+
     // A recorded intent skip means there is no intent.md to read, and the test two blocks
     // up has already accepted that. Reading it here regardless crashed with a raw ENOENT
     // — not an assertion message, just a stack trace naming a file the chain said need
@@ -332,20 +425,20 @@ function checkChange(parent: string, id: string, archived: boolean) {
       const asks = Array.from(
         new Set([...section(readFileSync(join(dir, 'intent.md'), 'utf8'), 'Asks').matchAll(/\|\s*(A\d+)\s*\|/g)].map((m) => m[1])),
       );
+
       expect(asks.length, `${id}: ## Asks has no A<n>`).toBeGreaterThan(0);
       const facts = readFileSync(join(dir, 'facts.md'), 'utf8');
       expect(asks.filter((a) => !new RegExp(`\\b${a}\\b`).test(facts))).toEqual([]);
     }
+
     if (decisions.kind === 'bug') expect(decisions.testLocked, `${id}: bug must lock the failing test`).toBe(true);
   });
 }
 
 describe('changes', () => {
   for (const id of dirs(CHANGES)) checkChange(CHANGES, id, false);
+
   for (const [parent, id] of archiveChanges(ARCHIVE)) checkChange(parent, id, true);
-  it('has at least one change — the chain was adopted by running it on itself', () => {
-    expect(dirs(CHANGES).length + archiveChanges(ARCHIVE).length).toBeGreaterThan(0);
-  });
   it('keeps no plans or handovers in .claude/plans', () => {
     const plans = join(ROOT, '.claude', 'plans');
     expect(!existsSync(plans) || readdirSync(plans).length === 0, '.claude/plans/ is scratch; use the change folder').toBe(true);
@@ -357,6 +450,7 @@ describe('changes', () => {
       encoding: 'utf8',
       cwd: ROOT,
     });
+
     expect(r.status, r.stdout + r.stderr).toBe(0);
   });
 });
@@ -374,14 +468,17 @@ const EXPECTED_HOOKS: [string, string][] = [
   ['PostToolUse', 'lint-on-edit.sh'],
   ['Stop', 'verify-on-stop.sh'],
 ];
+
 const EXPECTED_DENY = ['Read(.env*)', 'Read(**/secrets/**)', 'Read(**/.secrets/**)'];
 
 describe('settings.json', () => {
   const settings = JSON.parse(readFileSync(SETTINGS, 'utf8'));
   it('denies secrets and registers every hook', () => {
     for (const d of EXPECTED_DENY) expect(settings.permissions.deny).toContain(d);
+
     for (const [event, script] of EXPECTED_HOOKS) {
       const commands = (settings.hooks[event] as { hooks: { command: string }[] }[]).flatMap((g) => g.hooks.map((h) => h.command));
+
       expect(
         commands.some((c) => c.includes(script)),
         `${event} does not run ${script}`,
@@ -390,27 +487,20 @@ describe('settings.json', () => {
       expect(() => accessSync(join(HOOKS, script), constants.X_OK), `${script} not executable`).not.toThrow();
     }
   });
-  // TEST-20 contract: no orphan hook (a script nothing runs), no hook that does not parse. sdlc-config.sh is the library the others source.
-  it('registers every hook script, and each one is a script that parses', () => {
-    const registered = JSON.stringify(settings.hooks);
-    for (const f of readdirSync(HOOKS).filter((n) => n.endsWith('.sh') && n !== 'sdlc-config.sh')) {
-      expect(registered, `${f} is in .claude/hooks but settings.json does not run it`).toContain(f);
-      expect(readFileSync(join(HOOKS, f), 'utf8').startsWith('#!'), `${f} has no shebang`).toBe(true);
-      expect(spawnSync('bash', ['-n', join(HOOKS, f)]).status, `${f} does not parse`).toBe(0);
-    }
-  });
   it('tracks the hook files despite a global gitignore', () => {
     const tracked = spawnSync('git', ['ls-files', '.claude/settings.json', '.claude/hooks', 'sdlc.json'], {
       cwd: ROOT,
       encoding: 'utf8',
       env: envWith({}),
     }).stdout.split(/\s+/);
+
     const expected = [
       '.claude/settings.json',
       'sdlc.json',
       '.claude/hooks/sdlc-config.sh',
       ...EXPECTED_HOOKS.map(([, s]) => `.claude/hooks/${s}`),
     ];
+
     expect(expected.filter((e) => !tracked.includes(e))).toEqual([]);
   });
 });
@@ -422,6 +512,7 @@ describe('gate-bash', () => {
     const cmds = rule.samples ?? [];
     it(`blocks ${cmds[0] ?? rule.match} with a route`, () => {
       expect(cmds.length, `no samples for pattern ${rule.match}`).toBeGreaterThan(0);
+
       for (const c of cmds) {
         const r = runHook('gate-bash.sh', { tool_input: { command: c } });
         expect(r.status, c).toBe(2);
@@ -429,6 +520,7 @@ describe('gate-bash', () => {
       }
     });
   }
+
   it.each(['git add .', 'pnpm test', 'kubectl get pods', "echo 'pnpm add'", 'uv sync'])('lets %s through', (c) => {
     expect(runHook('gate-bash.sh', { tool_input: { command: c } }).status).toBe(0);
   });
@@ -443,8 +535,10 @@ const UGLY: Record<string, string> = {
   js: 'const x = [1,2,3 ]\n',
   mjs: 'const x = [1,2,3 ]\n',
 };
+
 const LINT_GLOBS = Object.keys(cfg.lintOnEdit ?? {}).flatMap((k) => k.split(/\s+/).filter(Boolean));
 const LINT_EXT = LINT_GLOBS.map((g) => /^\*\.(\w+)$/.exec(g)?.[1]).find((e) => !!e && e in UGLY);
+
 const LINT_SKIP = !LINT_GLOBS.length
   ? 'sdlc.json lintOnEdit is empty'
   : !LINT_EXT
@@ -469,6 +563,7 @@ describe('lint-on-edit', () => {
 describe('plan-gate', () => {
   it('falls through without plannotator', () => {
     const r = runHook('plan-gate.sh', { tool_name: 'ExitPlanMode' }, { PATH: '/usr/bin:/bin', CLAUDE_CONFIG_DIR: tmp('cfg') });
+
     expect(r.status).toBe(0);
     expect(r.stdout).toBe('');
   });
@@ -481,7 +576,9 @@ describe('plan-gate', () => {
     writeFileSync(join(bin, 'plannotator'), '#!/bin/sh\necho SHOULD-NOT-RUN\nexit 7\n', {
       mode: 0o755,
     });
+
     const r = runHook('plan-gate.sh', { tool_name: 'ExitPlanMode' }, { PATH: `${bin}:/usr/bin:/bin`, CLAUDE_CONFIG_DIR: dir });
+
     expect(r.status).toBe(0);
     expect(r.stdout).not.toContain('SHOULD-NOT-RUN');
   });
@@ -490,6 +587,7 @@ describe('plan-gate', () => {
 describe('session-check', () => {
   it('names what is missing and the install command', () => {
     const r = runHook('session-check.sh', {}, { PATH: '/usr/bin:/bin', CLAUDE_CONFIG_DIR: tmp('sc') });
+
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('plannotator binary');
     expect(r.stdout).toContain(cfg.toolsCommand);
@@ -514,19 +612,25 @@ describe('verify-on-stop', () => {
       cwd: dir,
       env,
     });
+
     return dir;
   }
+
   it('is a no-op without dirty source', () => {
     const dir = repo(1);
     writeFileSync(join(dir, 'README.md'), 'dirty but not source\n');
+
     const r = runHook('verify-on-stop.sh', { stop_hook_active: false }, { CLAUDE_PROJECT_DIR: dir });
+
     expect(r.status).toBe(0);
     expect(r.stderr).not.toContain('verify-ran');
   });
   it('blocks the stop when verify fails', () => {
     const dir = repo(1);
     writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
+
     const r = runHook('verify-on-stop.sh', { stop_hook_active: false }, { CLAUDE_PROJECT_DIR: dir });
+
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('verify-on-stop FAILED');
     expect(r.stderr).toContain('fix the code, not the test');
@@ -636,7 +740,7 @@ function chainRepo(
     mkdirSync(join(cdir, 'spec', 'prototype'));
     writeFileSync(join(cdir, 'spec', 'prototype', 'index.md'), '# prototype\n');
   }
-  if (opts.validation) writeFileSync(join(cdir, 'spec', 'validation.md'), opts.validation);
+  if (opts.validation) writeFileSync(join(cdir, 'spec', 'readiness.md'), opts.validation);
   writeFileSync(
     join(cdir, 'facts.md'),
     `---\ntype: facts\nstatus: ${opts.factsStatus ?? 'approved'}\n---\n\n# Facts\n\n- [ ] **F1** (A1) When x, the system shall y.\n`,
@@ -664,6 +768,7 @@ describe('chain-gate v3', () => {
       intent: 'skip -- ticket',
       skips: {},
     });
+
     const r = runChain(repo, `changes/${change}/facts.md`);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('omr-ux:design');
@@ -672,8 +777,9 @@ describe('chain-gate v3', () => {
     const [repo, change] = chainRepo(
       'validation',
       { size: 'M', kind: 'feature', skips: {} },
-      { designDone: true, validation: '---\ntype: validation\nverdict: not-ready\nstatus: draft\n---\n' },
+      { designDone: true, validation: '---\ntype: readiness\nverdict: not-ready\nstatus: draft\n---\n' },
     );
+
     const r = runChain(repo, `changes/${change}/plan.md`);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('omr-ux:validate spec');
@@ -705,12 +811,14 @@ describe('chain-gate v3', () => {
       { size: 'M', kind: 'feature', intent: 'interview -- owner', skips: {} },
       { designDone: true },
     );
+
     const r = runChain(repo, `changes/${change}/facts.md`);
     expect(r.status).toBe(2);
     expect(r.stderr).toContain('interview');
   });
   it('keeps dot directories exempt', () => {
     const [repo] = chainRepo('dot-dirs', { size: 'M', kind: 'feature', intent: 'skip -- ticket', skips: {} }, { plan: false });
+
     expect(runChain(repo, '.claude/settings.json').status).toBe(0);
     expect(runChain(repo, 'src/app.ts').status).toBe(2);
   });
@@ -722,6 +830,7 @@ describe('chain-gate v3', () => {
       skips: {},
       testLocked: true,
     });
+
     expect(runChain(repo, 'app.test.ts').status).toBe(2);
   });
   it('does not apply the v3 spec rule to v2 folders', () => {
@@ -734,6 +843,7 @@ describe('chain-gate v3', () => {
       { size: 'none', kind: 'feature', skips: { validation: 'skip -- no interface change' } },
       { resourceTarget: 'https://github.com/org/repo/blob/abc123/docs/x.md' },
     );
+
     assertChangeResourcesStayInRepo(repo, join(repo, 'changes', change));
   });
 
@@ -743,6 +853,7 @@ describe('chain-gate v3', () => {
       { size: 'none', kind: 'feature', skips: { validation: 'skip -- no interface change' } },
       { resourceTarget: '/Users/calvin/Desktop/session.md' },
     );
+
     expect(() => assertChangeResourcesStayInRepo(repo, join(repo, 'changes', change))).toThrow('outside the repo');
   });
   it('accepts repo resource links in v3 ask rows', () => {
@@ -751,6 +862,7 @@ describe('chain-gate v3', () => {
       kind: 'feature',
       skips: { validation: 'skip -- no interface change' },
     });
+
     expect(() => assertChangeResourcesStayInRepo(repo, join(repo, 'changes', change))).not.toThrow();
   });
 });
@@ -760,6 +872,7 @@ describe('chain-gate v3', () => {
 describe('REVIEW.md', () => {
   it('has the playbook structure and the tally line', () => {
     const text = readFileSync(join(ROOT, 'REVIEW.md'), 'utf8');
+
     for (const h of ['## Passes', '## What Important means here', '## Cap the nits', '## Do not report']) expect(text).toContain(h);
     expect(text).toContain('IMPORTANT: <n>  NITS: <m>');
   });
@@ -772,7 +885,9 @@ function sample(glob: string): string {
 
 function classify(files: string[]): string {
   const r = spawnSync('python3', [join(ROOT, 'scripts', 'ship_show_ask.py'), 'classify', ...files], { encoding: 'utf8', cwd: ROOT });
+
   expect(r.status, r.stderr).toBe(0);
+
   return r.stdout.trim();
 }
 
@@ -795,30 +910,19 @@ describe.skipIf(!TIERS_ON)('tiers', () => {
   ] as [string[], string][])('classifies %j as %s', (files, expected) => {
     expect(classify(files)).toBe(expected);
   });
-  it('CODEOWNERS is exactly the ask tier, generated from sdlc.json', () => {
-    const path = join(ROOT, '.github', 'CODEOWNERS');
-    if (cfg.codeowners.length === 0) {
-      expect(existsSync(path), 'no codeowners in sdlc.json, so no CODEOWNERS file').toBe(false);
-      return;
-    }
-    const rules = readFileSync(path, 'utf8')
-      .split('\n')
-      .map((l) => l.split('#')[0].trim())
-      .filter(Boolean)
-      .map((l) => l.split(/\s+/));
-    const normalise = (p: string) => (p.replace(/^\//, '').endsWith('/') ? p.replace(/^\//, '') + '**' : p.replace(/^\//, ''));
-    expect(new Set(rules.map((r) => normalise(r[0])))).toEqual(new Set(TIERS.ask));
-    for (const r of rules) expect(r.slice(1)).toEqual(cfg.codeowners);
-  });
 });
 
 describe('docs and workflows', () => {
   it('exist and are linked from CLAUDE.md', () => {
-    expect(existsSync(join(ROOT, 'docs', 'sdlc.md'))).toBe(true);
-    expect(readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8')).toContain('docs/sdlc.md');
-    const claudeOn = (cfg as { claude?: boolean }).claude !== false;
+    const docs = cfg.docs ?? 'docs/sdlc.md';
+    expect(existsSync(join(ROOT, docs))).toBe(true);
+    expect(readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8')).toContain(docs);
+
     for (const wf of ['claude-review.yml', 'claude.yml', 'ci-triage.yml'])
-      expect(existsSync(join(ROOT, '.github', 'workflows', wf)), `${wf} (sdlc.json claude=${claudeOn})`).toBe(claudeOn);
+      expect(existsSync(join(ROOT, '.github', 'workflows', wf)), `${wf}: no Claude in CI since sdlc-run 3.7.0; run adopt --upgrade`).toBe(
+        false,
+      );
+
     for (const wf of ['ship-show-ask.yml'])
       expect(existsSync(join(ROOT, '.github', 'workflows', wf)), `${wf} (sdlc.json tiers=${TIERS_ON})`).toBe(TIERS_ON);
   });

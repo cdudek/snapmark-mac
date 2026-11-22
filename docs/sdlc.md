@@ -11,7 +11,7 @@ changes/<date>-<KEY>-<slug>/
   intent.md             ## Asks, job stories, success measure
   spec/                 the UX plan: brief · ia · interaction · screens · conformance · validation
   facts.md              EARS facts citing asks, screens and test tags
-  plan.md               where things go · feature PRs · Done · Goal handover
+  plan.md               where things go · features · Done · Goal handover
   done.json, lock.json  the criteria as data, and their hash at approval
   milestone.md          features and states · outcome
 docs/designs/
@@ -38,10 +38,10 @@ That installs plannotator and its plugin. Linear: in Claude Code run `/mcp` and 
 | 2 UX plan   | `omr-ux` design, sitemap, conformance, words; one validation pass. Skipped for size `none` or `ux: off`.                                                                                                                                                                          | none                                                  |
 | 3 Facts     | Facts cite asks, screens and the E2E tag that proves them; plain-language lint.                                                                                                                                                                                                   | none                                                  |
 | 4 Tech plan | Where things go, milestones and their features, Done, one goal for all of it.                                                                                                                                                                                                     | one gate for all three, then `verify_gate.py approve` |
-| 5 Build     | One go (default): one `/goal` builds every milestone in order; per feature, tests, build, commit, and nothing else runs between features. Questions go to `questions.md` and never block; answers become asks of the next milestone. (`delivery: feature-prs`: a PR per feature.) | none                                                  |
+| 5 Build     | One go (default): one `/goal` builds every milestone in order; per feature, tests, build, commit, with the touched tests and pre-commit checks run before the next feature starts. Questions go to `questions.md` and never block; answers become asks of the next milestone.     | none                                                  |
 | 6 Milestone | Checks on the milestone diff; the full E2E suite once, ×3 only for changed and flaky specs (see Build and test); validation of every fact and ask against the built app (`validation.md`), one findings list, one fix round, `verify_gate.py milestone`, one PR that releases it. | only when a Critical or High would be deferred        |
 | 6p Project  | Only for work spanning several milestones: rebase `project/<slug>`, re-check the whole project diff, one PR to the default branch.                                                                                                                                                | engineer accepts                                      |
-| 7 Outcome   | Archive on merge; read the success measure after release.                                                                                                                                                                                                                         | engineer reads it                                     |
+| 7 Outcome   | The change's PR keeps its folder; the next change's first commit removes it with the outcome record (no archive, no records-only PR); read the success measure after release.                                                                                                     | engineer reads it                                     |
 
 ### Branches
 
@@ -55,37 +55,97 @@ none.
 
 ## sdlc.json keys
 
-| Key                                                      | Meaning                                                                                                                |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `checks.feature[]`, `checks.milestone[]`                 | what `scripts/verify_gate.py` runs, cheapest first                                                                     |
-| `milestones`, `hotfix`                                   | milestone branch prefix and rebase rule; the hotfix lane                                                               |
-| `delivery`                                               | `one-go` (default) or `feature-prs`                                                                                    |
-| `goal`                                                   | turn caps: `runTurns` for the one-go goal, `featureTurns` and `milestoneTurns` for feature PRs                         |
-| `languages`, `responsiveTier`, `ux`                      | what the product ships, the device matrix tier, UX on or off                                                           |
-| `protected`                                              | paths refused after approval                                                                                           |
-| `verify`, `verifyStop`                                   | full command before PR; fast Stop hook command (skipped inside a `/goal` and when nothing changed since its last pass) |
-| `planGate`                                               | `owner` or `self`; self is barred for data safety, irreversible writes, security or money                              |
-| `testGlobs`, `prototypeDirs`, `feedback`                 | locked tests, prototype paths, owner-words files                                                                       |
-| `verifyDirty`, `lintOnEdit`, `blocked[]`                 | hook inputs                                                                                                            |
-| `tiers`, `askGatesMerge`, `codeowners`, `claude`, `keep` | generated workflow policy                                                                                              |
+| Key                                        | Meaning                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checks.feature[]`, `checks.milestone[]`   | what `scripts/verify_gate.py` runs, cheapest first by recorded seconds (`"after": ["<check name>"]` keeps a check behind the one it needs, such as codegen before the typecheck; `"serial": true` pins a check in place; an approval made before 3.18.0 keeps the declared order; `--keep-going` runs past a failure) |
+| `milestones`, `hotfix`                     | milestone branch prefix and rebase rule; the hotfix lane                                                                                                                                                                                                                                                              |
+| `delivery`                                 | `one-go`, the only delivery: features are commits on the milestone branch, one milestone PR                                                                                                                                                                                                                           |
+| `goal`                                     | turn caps: `runTurns` for the goal, `projectTurns` for a project close (default: `milestoneTurns`, 30)                                                                                                                                                                                                                |
+| `builders`                                 | `claude` (default) or `codex`: who builds feature rows and fix parts. With `codex`, the kit's `codex-build.sh` runs the Codex CLI in the feature worktree with the network off and rejects a run that touched a protected path; Claude still supervises, closes the milestone and runs the gates                      |
+| `builderModel`, `builderEffort`            | which model builds and how hard (default `sonnet`, `high`): the `model` and `effort` of every builder agent, or the Codex model and reasoning when `builders` is `codex`. Set `opus` for a repo whose changes are hard; a plan's Approach may override both for one change                                            |
+| `languages`, `responsiveTier`, `ux`        | what the product ships, the device matrix tier, UX on or off                                                                                                                                                                                                                                                          |
+| `ciPaths`                                  | which changed files run which CI step (lint, unit, build, e2e, deploy): a file in `code` or `config` runs the steps whose include matches it, `all` runs everything, a file in neither `code` nor `config` (or in `docs`) runs nothing; `specs` names the E2E spec files                                              |
+| `ciCommands`                               | stack commands for the required checks and any other remote jobs: `install`, `lint`, `unit`, `build`, `e2e` (`{shard}`, `{total}`), `e2eTouched` (`{files}`), optional `deploy`                                                                                                                                       |
+| `sdlcVersion`                              | the sdlc-run version the repo was last adopted or upgraded with; the skill warns when the kit is newer (`adopt --upgrade`)                                                                                                                                                                                            |
+| `protected`                                | paths refused after approval                                                                                                                                                                                                                                                                                          |
+| `heavy`, `db`, `preflight`                 | the heavy-job queue (`slots`, `waitTimeout`, `runTimeout`, `portBase`, `patterns`), the local test database and the personal cloud database, and the preflight checks (`tools`, `auth`, `docker`): `references/heavy-work.md` in the kit                                                                              |
+| `checkTimeout`                             | seconds a gate check may run (default 1800); a check's own `timeout` overrides it                                                                                                                                                                                                                                     |
+| `layout`, `livingSpecs`                    | `4` opts in to the three-document layout and the living spec (a new adoption writes `4`; an adopted repo keeps its value, and `adopt --upgrade` offers the switch); `livingSpecs` renames the `specs` folder                                                                                                          |
+| `verify`, `verifyStop`                     | full command before PR; fast Stop hook command (skipped inside a `/goal` and when nothing changed since its last pass)                                                                                                                                                                                                |
+| `planGate`                                 | `owner` or `self`; self is barred for data safety, irreversible writes, security or money                                                                                                                                                                                                                             |
+| `testGlobs`, `prototypeDirs`, `feedback`   | locked tests, prototype paths, owner-words files                                                                                                                                                                                                                                                                      |
+| `verifyDirty`, `lintOnEdit`, `blocked[]`   | hook inputs                                                                                                                                                                                                                                                                                                           |
+| `tiers`, `askGatesMerge`, `claude`, `keep` | generated workflow policy                                                                                                                                                                                                                                                                                             |
+| `codeowners`                               | legacy compatibility key; CODEOWNERS is never installer-managed                                                                                                                                                                                                                                                       |
 
 ## Where a change stands
 
-`python3 scripts/sdlc_status.py map` shows every milestone, the features of the current one and
-the stage, all read from the change folder's files.
+`/sdlc-run status` shows every milestone, the features of the current one and the stage, all read
+from the change folder's files. Inside a `/goal`, `python3 scripts/sdlc_status.py goal <id>` prints
+`GOAL <id> DONE`, or `BLOCKED` with a state and the command that leaves it. Every state, who acts
+(the agent, you or GitHub) and where it leads is in the kit's `references/states.json`. A merged
+Ask PR is not done without your `Accept milestone` answer, and a `Hold` blocks at any tier.
+
+## Heavy work
+
+Builds, app servers, browsers and the full suite are heavy. They wait in a queue, one at a time per
+machine by default, so many helpers do not run out of memory. Light checks (format, lint, types,
+touched unit tests) never wait.
+
+- `python3 scripts/heavy.py run -- <command>` waits for a slot, runs, releases. `submit` and `wait`
+  hand a job in and stop; `status` shows who holds the slot.
+- The milestone gate runs every check through the queue. A slot that never frees ends the gate with
+  `VERIFY BLOCKED reason=env` and names the holder.
+- `python3 scripts/db.py test run -- <command>` gives a job a private copy of a migrated local
+  Postgres. `db.py dev ensure` connects you to your own cloud database with your own identity.
+- `python3 scripts/preflight.py` checks tools, sign-in and Docker once and prints one fix per failure.
+- The `helper-guard.sh` hook refuses a helper's heavy command that skips the queue.
+
+All of it is optional. Set `heavy`, `db` and `preflight` in `sdlc.json` (key table above); the kit's
+`references/heavy-work.md` has the details.
+
+## The living spec (the default for a new adoption)
+
+A repo on `"layout": 4` in `sdlc.json` (a new adoption writes it; an adopted repo adds it to switch) holds three documents, `spec.md`
+(why and what), `design.md` (how) and `tasks.md` (in what order), instead of intent, facts, plan and
+the rest. Scope S needs only the spec, M the spec and the tasks, L all three, chosen by risk. A
+change already on the old layout finishes on it.
+
+What the product does is one file per rule in `specs/<capability>/rules/R123.md`, edited in the PR
+that changes the behaviour. The PR's git diff is the delta; there is no archive and no apply step.
+`python3 scripts/spec.py find <words>` lists the rules that match a request, `new` creates a rule
+with the next free id, `check` makes a changed rule need a changed test, and `renumber` fixes two
+PRs that took the same number.
+
+## Closing the change
+
+There is no archive and no records-only PR. The change's PR keeps its folder. The next change's first
+commit runs `sdlc_status.py sweep-merged --apply`: for each change whose PR merged,
+`spec.py outcome write changes/<id>` copies the success measure to `.sdlc/outcomes/<id>.json`, then
+`git rm -r changes/<id>` removes the folder (only when `git grep -F "changes/<id>/"` finds no reader). After
+release the measure is recorded with `spec.py outcome record`; `spec.py outcome due` lists the ones
+still waiting. History stays in git and the merged PR.
 
 ## Hooks
 
-| Event                            | Script              | Does                                                                                                       |
-| -------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `SessionStart`                   | `session-check.sh`  | reports missing plannotator setup                                                                          |
-| `PermissionRequest ExitPlanMode` | `plan-gate.sh`      | opens the plan gate when needed                                                                            |
-| `PreToolUse Bash`                | `gate-bash.sh`      | blocks commands named in `blocked[]`                                                                       |
-| `PreToolUse Edit\|Write`         | `chain-gate.sh`     | the chain's gates; refuses source edits outside an active `/goal` and protected paths after approval       |
-| `PostToolUse Edit\|Write`        | `lint-on-edit.sh`   | runs matching file-scoped lint/format command                                                              |
-| `Stop`                           | `verify-on-stop.sh` | runs `npm run format && npm run lint && npm run typecheck` when dirty, falling back to `verify` when unset |
+| Event                            | Script              | Does                                                                                                                                                                                                            |
+| -------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SessionStart`                   | `session-check.sh`  | reports missing plannotator setup                                                                                                                                                                               |
+| `UserPromptSubmit`               | `turn-start.sh`     | snapshots the source diff hash when a prompt is sent                                                                                                                                                            |
+| `PermissionRequest ExitPlanMode` | `plan-gate.sh`      | opens the plan gate when needed                                                                                                                                                                                 |
+| `PreToolUse Bash`                | `gate-bash.sh`      | blocks commands named in `blocked[]`                                                                                                                                                                            |
+| `PreToolUse Bash`                | `pr-gate.sh`        | one PR per milestone: refuses a PR or push that is not a milestone close with `VERIFY PASS milestone` on its head, a PR into `project/*` from anything but a milestone, and any other PR or push inside `/goal` |
+| `PreToolUse Bash`                | `helper-guard.sh`   | refuses a helper's (subagent's) heavy command that does not go through `scripts/heavy.py run`; the owner's own session is never refused                                                                         |
+| `PreToolUse Edit\|Write`         | `chain-gate.sh`     | the chain's gates; refuses source edits outside an active `/goal` and protected paths after approval                                                                                                            |
+| `PostToolUse Edit\|Write`        | `lint-on-edit.sh`   | runs matching file-scoped lint/format command                                                                                                                                                                   |
+| `Stop`                           | `verify-on-stop.sh` | runs `npm run format && npm run lint && npm run typecheck` (falling back to `verify`) only when the turn changed source and that state was not verified before                                                  |
+
+Set `SDLC_GOAL_OFF=1` in the environment Claude starts with (`SDLC_GOAL_OFF=1 claude`) and no hook treats a goal as running. An agent's Bash `export` never reaches a hook, and there is no file switch. With it set, chain-gate also allows milestone build edits without a goal.
 
 ## Build and test
+
+Read the installed `omr-dev:sdlc-run` skill → `references/local-first.md` before checks
+or a push. This is a plugin reference, not a file in this repo.
 
 After the one gate, `python3 scripts/verify_gate.py approve <id>` locks the criteria. One
 `/goal` from `plan.md` `## Goal handover` then builds every milestone. Each milestone ends on
@@ -99,7 +159,7 @@ For milestone E2E, use the committed `e2e/flaky-specs.txt` list. The installed
 `omr-dev:e2e-test-run` reference `suite-speed-and-reliability.md` section G defines the
 selection and line format. Section F defines the lock and load policy for shared machines.
 
-Before a PR, `verify` runs once:
+After targeted checks pass, `verify` is the full suite (GitHub's required checks are the merge gate):
 
     npm run format && npm run lint && npm run typecheck && npm test
 
@@ -115,22 +175,70 @@ Run `marks.py init <id>` for Snapmark/reference images; fill `marks.json` agains
 
 One owner, so no tiers (`sdlc.json` `tiers: false`). Every PR merges itself once it is green.
 
-- **Arm it:** `gh pr merge <n> --squash --auto`.
+- **Arm it:** `gh pr merge <n> --merge --auto` for a milestone or project PR (a merge commit keeps a stacked milestone free of rebases), `--squash --auto` for anything else.
 - **What it waits for:** required checks on `main`.
 
-## Claude in CI
+## Review
 
-| Workflow            | Does                                                         |
-| ------------------- | ------------------------------------------------------------ |
-| `claude-review.yml` | one review against `REVIEW.md`; `merge-gate` reads the tally |
-| `claude.yml`        | handles `@claude` comments                                   |
-| `ci-triage.yml`     | posts a short failure triage                                 |
+The code is reviewed once per milestone, locally, before the push: `omr-dev:pr-review` with
+Claude and Codex on the milestone diff, reading `REVIEW.md`. Nothing reviews in CI, so the repo
+needs no `ANTHROPIC_API_KEY`.
 
 ## Credentials
 
-| Name                | Unlocks          |
-| ------------------- | ---------------- |
-| `ANTHROPIC_API_KEY` | Claude workflows |
+None: no workflow needs a secret.
+
+## Pull requests, issues and PR comments: scannable, never a text blob
+
+- **Order:** `## What` → `## Why` → `## Proof` → `## Before merge` (only while something is open) → `## How hard is it to undo this PR after merging?` → `## Decision record` (Repair, Migrate and Answer only).
+- **Bullets:** Every section is a list; start each bullet with a bold label (`- **Source plan:** 0 adds, 8 updates, 38 destroys.`). Keep one idea per bullet, at most two lines, and no paragraph longer than two sentences. Keep checklist syntax and bold-label the item.
+- **Proof:** Name the check and result (`- **Unit tests:** 1,320 passed.`). Put links on the label or result, never a bare URL in prose. Preserve claims and human checklist attestations when restructuring an existing body.
+- **Decision4 (advisory):** Copy the section from the repo's PR template. Pick one level (🟢 Undo, 🟡 Repair, 🟠 Migrate, 🔴 Answer) at or above the lowest level `boundary-map.yaml` gives the changed paths; unsure, take the higher. Give concrete recovery steps and who is responsible. Nothing checks it and it never blocks a merge.
+- **Decision record:** Only above Undo, as `AGENTS.md` says: Repair names what was chosen, over what, why and what it commits us to; Migrate lists at least two options; Answer lists facts marked observed, inferred, asked or unknown and recommends nothing.
+- **Milestone and review text:** The same layout covers milestone-close PRs, issue bodies and PR comments. Put addressed feedback under What, its rationale under Why and its check results under Proof. A short thread reply can be one bold-labelled bullet; include only applicable sections.
+- **Validation:** Validate the proposed body before pushing and the actual body after creation or edits against these rules. Use `--body-file`.
+
+Full example for a Repair change (illustrative evidence, not claims to copy). Omit Before merge when nothing is open, and omit Decision record at Undo.
+
+```markdown
+## What
+
+- **Change:** Move saved filters to the versioned format.
+- **Requirement F1:** Existing filters remain readable during rollout.
+
+## Why
+
+- **Compatibility:** Clients need time to adopt the new format.
+
+## Proof
+
+- **Migration tests:** 12 passed, including reading the old format.
+- **Checks:** The repo's verify command passed on the proposed head.
+
+## Before merge
+
+- [ ] **Owner review:** Confirm the rollout window.
+
+## How hard is it to undo this PR after merging?
+
+**🟡 Repair** — The team must correct stored filters and redeploy the compatible reader.
+
+**Recovery steps**
+
+1. Convert saved filters back with the reverse migration.
+2. Redeploy the previous reader and check that existing filters load.
+
+- **Responsible for recovery:** Service owner
+
+## Decision record
+
+- **Chose:** A versioned format with a reversible migration.
+- **Over:** Replacing stored filters in place without a compatibility window.
+- **Because:** Existing clients must keep reading their saved filters.
+- **Commits us to:** Keeping the reverse migration until rollout is verified.
+
+🤖 Generated with Codex
+```
 
 ## Repo-specific
 

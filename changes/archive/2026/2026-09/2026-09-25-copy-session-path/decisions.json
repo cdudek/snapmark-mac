@@ -1,6 +1,0 @@
-{
-  "ticket": "beads snap-jpx — owner's choice in the step-0.5 dialog, 2026-09-25; linear: none",
-  "intent": "skip — the owner's words state it: \"I want to be able to copy and paste the path to the Markdown from the current session. I just paste it and then I can point the AI to it.\" (2026-09-25)",
-  "design": "none — one menu item, one PR (owner's choice, 2026-09-25)",
-  "decided_by": "owner, step-0.5 dialog, 2026-09-25"
-}

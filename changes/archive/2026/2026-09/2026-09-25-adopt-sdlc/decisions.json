@@ -1,6 +1,0 @@
-{
-  "ticket": "beads snap-64x — the owner chose Beads over Linear on 2026-09-25 (\"use beads\"); linear: none",
-  "intent": "skip — the owner set the adoption in the step-0.5 dialog on 2026-09-25: solo, no Claude CI, Beads as tracker",
-  "design": "none — single-PR change",
-  "decided_by": "owner, step-0.5 dialog, 2026-09-25"
-}

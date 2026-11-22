@@ -1,6 +1,0 @@
-{
-  "ticket": "beads snap-0wm — the owner chose Beads over Linear on 2026-09-25 (\"use beads\"); linear: none",
-  "intent": "skip — the briefing states it: docs/ux/audits/2026-09-25/briefing.md quotes the owner's requests, scope and deliverables (owner's answer in the step-0.5 dialog, 2026-09-25)",
-  "design": "none — single-PR change; its standing outputs live in docs/ux/ (owner's answer in the step-0.5 dialog, 2026-09-25)",
-  "decided_by": "owner, step-0.5 dialog, 2026-09-25"
-}

@@ -30,12 +30,11 @@
   "toolsCommand": "npm run sdlc:tools",
   "tests": "vitest",
   "codeowners": [],
-  "claude": false,
   "claudeAllow": ["Bash(npm *)", "Bash(git:*)", "Bash(gh pr:*)"],
   "showChannel": "",
   "keep": [],
   "tiers": false,
-  "kitTemplates": "8165782d8151",
+  "kitTemplates": "8dd31012124e",
   "tracker": {
     "kind": "beads",
     "initiative": "",
@@ -181,5 +180,11 @@
     "e2e": "xvfb-run -a npm run smoke",
     "e2eTouched": "pnpm exec playwright install --with-deps chromium && pnpm exec playwright test {files}"
   },
-  "sdlcVersion": "3.4.1"
+  "sdlcVersion": "3.26.4",
+  "builders": "claude",
+  "builderModel": "sonnet",
+  "builderEffort": "high",
+  "heavy": {
+    "patterns": ["xvfb\\-run\\ \\-a\\ npm\\ run\\ smoke"]
+  }
 }
