@@ -19,61 +19,13 @@ code, not the test. Git hooks run the cheap part for you (see "Git hooks" in `AG
 
 The handoff contract lives in `AGENTS.md`; use `boundary-map.yaml` and the readable PR template.
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+## Tracking
 
-## Beads Issue Tracker
+`bd` (beads) is available, not mandatory.
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
+## Checks and releases
 
-### Quick Reference
-
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
-```
-
-### Rules
-
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
-
-## Session Completion
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-
-<!-- END BEADS INTEGRATION -->
-
-## Local CI and releases
-
-Before every push, run `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run slop`, `npm run arch`, `npm run perf`, `npm run gates-test` and `npm run smoke` locally. Remote CI confirms a locally green change: it runs once per ready (non-draft) PR, never on push, and Decision4 is an optional PR-body section with no CI check. Never push to find out which test fails.
-
-Read the exact failing job or test, reproduce it locally, and rerun that test plus the directly affected suite until green. For an E2E change, iterate on the changed spec and its neighbours. Then run the full local gate once, batch the fixes into one push, and do not retry the whole pipeline for one failure.
+Fast checks run in the git hooks (pre-commit, pre-push; see "Git hooks" in `AGENTS.md`). The full suite (`npm test`), `npm run slop`, `npm run arch`, `npm run perf`, `npm run gates-test` and `npm run smoke` run in CI only. Remote CI runs once per ready (non-draft) PR, never on push, and Decision4 is an optional PR-body section with no CI check. Read the failing job, reproduce that one test locally, fix it, and batch the fixes into one push; do not rerun the whole pipeline for one failure.
 
 To release a reviewed commit on main, choose its version and run `git tag vX.Y.Z && git push --tags`. The release workflow reads the version from the tag; ordinary main pushes never start it. Alternatively, use **Actions → Release → Run workflow** on main: Conventional Commits since the last release select the next version (fix/perf = patch, feat = minor, breaking = major). A manual run with no pending release stops before macOS starts. Both paths retain signing, notarization, update-bucket upload and GitHub release publishing.
 
