@@ -2,24 +2,16 @@
 
 ## How work moves: the SDLC
 
-This repo runs Anthropic's AI-native SDLC through the kit skill `omr-dev:run-sdlc`,
-configured by `sdlc.json`. Every unit of work is a **change**: a folder
-`changes/<YYYY-MM-DD>-<KEY>-<slug>/` (no `<KEY>` when there is no Linear issue) with `intent.md` (optional when the ticket states it),
-`facts.md` (testable outcomes) and `plan.md` (files · order of work · risks · **Done**),
-one PR, and a Linear issue when there is one. The plan is gated in plannotator before any code; the build
-runs with **`/goal`** against the plan's Done section; every PR auto-merges on green; Claude reviews every PR
-against [`REVIEW.md`](REVIEW.md); when the PR is green the folder moves to
-`changes/archive/` under the same name. A design that outlives one PR is a
-file in `docs/designs/`, edited in the change's PR; issue = change = PR, project = design. Handovers live in
-the change folder, never in `.claude/plans/`. Start with `/omr-dev:run-sdlc <title>`;
-the reference is **[docs/sdlc.md](docs/sdlc.md)**.
+sdlc-run is retired. Work runs through cfactory: start with `/calvin-factory:cfactory`.
+Claude reviews every PR against [`REVIEW.md`](REVIEW.md). The existing `changes/` folders and
+`sdlc.json` stay because scripts read them; [docs/sdlc.md](docs/sdlc.md) is history.
 
 ## Verifying your work
 
     npm run format && npm run lint && npm run typecheck && npm test
 
 Run it before reporting any task complete, and paste the tail. `npm run slop` (anti-slop rules, complexity and clone metrics against `origin/main`; needs `lizard` on PATH) is its own CI job; hotspots live in `.fitness/slop-baseline.json` and may only shrink. `architecture.yaml` is the module and dependency policy: `npm run arch` checks the imports against it, `npm run perf` checks the bundle budgets, `npm run fitness` runs every dimension and writes `fitness-report.json`. `npm run gates-test` runs the negative fixtures in `tests/fixtures/gates` (every gate has `bad-*` cases that must fail and `good-*` cases that must pass; add one when you add a gate), and `npm run enforcement:audit` reports whether each rule's check is installed, configured, wired into `check` and green; a new fitness row in `architecture.yaml` needs an `enforcement` entry. If a test fails, fix the
-code, not the test. The Stop hook runs it for you when source files are dirty.
+code, not the test. Git hooks run the cheap part for you (see "Git hooks" in `AGENTS.md`).
 
 ## Decision4
 

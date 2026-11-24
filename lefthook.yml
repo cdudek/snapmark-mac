@@ -1,0 +1,22 @@
+# Cheap local checks, seconds not minutes. Build, the app test scripts, smoke and e2e run in CI only.
+# Install once per clone (worktrees share it): npx lefthook install
+# Every command runs through scripts/git-hook-env.sh: git exports GIT_DIR and friends into hooks,
+# and tests that build temp repos would otherwise write into this repo.
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: '*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc,css,html,md,yml,yaml}'
+      run: bash scripts/git-hook-env.sh npx prettier --check --ignore-unknown {staged_files}
+
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      run: bash scripts/git-hook-env.sh npm run -s lint
+    typecheck:
+      run: bash scripts/git-hook-env.sh npm run -s typecheck
+    unit:
+      # The only vitest file is tests/sdlc.test.ts (hooks, settings, change folders); the app's
+      # test scripts need a build and run in CI.
+      run: bash scripts/git-hook-env.sh npx vitest run tests/sdlc.test.ts

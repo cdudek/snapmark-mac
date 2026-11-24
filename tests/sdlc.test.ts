@@ -363,16 +363,10 @@ describe('changes', () => {
 
 // --- hooks: registered, executable, doing what docs/sdlc.md says ---------------------
 
-// Pairs, not a record keyed by event: PreToolUse carries two hooks -- gate-bash.sh for what
-// sdlc.json blocks, chain-gate.sh for the chain's own gates -- and a record kept only one.
+// The sdlc-run gates are retired (cfactory owns the process); gate-bash.sh and lint-on-edit.sh stay.
 const EXPECTED_HOOKS: [string, string][] = [
-  ['SessionStart', 'session-check.sh'],
-  ['UserPromptSubmit', 'turn-start.sh'],
-  ['PermissionRequest', 'plan-gate.sh'],
   ['PreToolUse', 'gate-bash.sh'],
-  ['PreToolUse', 'chain-gate.sh'],
   ['PostToolUse', 'lint-on-edit.sh'],
-  ['Stop', 'verify-on-stop.sh'],
 ];
 const EXPECTED_DENY = ['Read(.env*)', 'Read(**/secrets/**)', 'Read(**/.secrets/**)'];
 
@@ -466,121 +460,6 @@ describe('lint-on-edit', () => {
   });
 });
 
-describe('plan-gate', () => {
-  it('falls through without plannotator', () => {
-    const r = runHook('plan-gate.sh', { tool_name: 'ExitPlanMode' }, { PATH: '/usr/bin:/bin', CLAUDE_CONFIG_DIR: tmp('cfg') });
-    expect(r.status).toBe(0);
-    expect(r.stdout).toBe('');
-  });
-  it('steps aside when the plugin owns the hook', () => {
-    const dir = tmp('plugin');
-    mkdirSync(join(dir, 'plugins'));
-    writeFileSync(join(dir, 'plugins', 'installed_plugins.json'), '{"plugins": {"plannotator@plannotator": {}}}');
-    const bin = join(dir, 'bin');
-    mkdirSync(bin);
-    writeFileSync(join(bin, 'plannotator'), '#!/bin/sh\necho SHOULD-NOT-RUN\nexit 7\n', {
-      mode: 0o755,
-    });
-    const r = runHook('plan-gate.sh', { tool_name: 'ExitPlanMode' }, { PATH: `${bin}:/usr/bin:/bin`, CLAUDE_CONFIG_DIR: dir });
-    expect(r.status).toBe(0);
-    expect(r.stdout).not.toContain('SHOULD-NOT-RUN');
-  });
-});
-
-describe('session-check', () => {
-  it('names what is missing and the install command', () => {
-    const r = runHook('session-check.sh', {}, { PATH: '/usr/bin:/bin', CLAUDE_CONFIG_DIR: tmp('sc') });
-    expect(r.status).toBe(0);
-    expect(r.stdout).toContain('plannotator binary');
-    expect(r.stdout).toContain(cfg.toolsCommand);
-  });
-});
-
-describe('verify-on-stop', () => {
-  function repo(verifyExit: number): string {
-    const dir = tmp('repo');
-    const env = envWith({});
-    spawnSync('git', ['init', '-q'], { cwd: dir, env });
-    // The throwaway repo gets its own sdlc.json so `verify` is a script we control.
-    writeFileSync(
-      join(dir, 'sdlc.json'),
-      JSON.stringify({
-        verify: `sh -c 'echo verify-ran; exit ${verifyExit}'`,
-        verifyDirty: ['*.ts'],
-      }),
-    );
-    spawnSync('git', ['add', '.'], { cwd: dir, env });
-    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'init'], {
-      cwd: dir,
-      env,
-    });
-    return dir;
-  }
-  it('is a no-op without dirty source', () => {
-    const dir = repo(1);
-    writeFileSync(join(dir, 'README.md'), 'dirty but not source\n');
-    const r = runHook('verify-on-stop.sh', { stop_hook_active: false }, { CLAUDE_PROJECT_DIR: dir });
-    expect(r.status).toBe(0);
-    expect(r.stderr).not.toContain('verify-ran');
-  });
-  it('blocks the stop when verify fails', () => {
-    const dir = repo(1);
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
-    const r = runHook('verify-on-stop.sh', { stop_hook_active: false }, { CLAUDE_PROJECT_DIR: dir });
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('verify-on-stop FAILED');
-    expect(r.stderr).toContain('fix the code, not the test');
-  });
-  it('passes when verify passes', () => {
-    const dir = repo(0);
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
-    expect(runHook('verify-on-stop.sh', { stop_hook_active: false }, { CLAUDE_PROJECT_DIR: dir }).status).toBe(0);
-  });
-  it('skips when the dirty diff is unchanged since the last pass', () => {
-    const dir = repo(0);
-    const count = join(dir, '.git', 'count');
-    writeFileSync(join(dir, 'sdlc.json'), JSON.stringify({ verify: `sh -c 'echo ran >> ${count}'`, verifyDirty: ['*.ts'] }));
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
-    const env = { CLAUDE_PROJECT_DIR: dir };
-    runHook('verify-on-stop.sh', { stop_hook_active: false }, env);
-    runHook('verify-on-stop.sh', { stop_hook_active: false }, env);
-    expect(readFileSync(count, 'utf8').split('ran').length - 1).toBe(1);
-  });
-  it('skips a turn that changed nothing, runs once after one that did', () => {
-    const dir = repo(0);
-    const count = join(dir, '.git', 'count');
-    writeFileSync(join(dir, 'sdlc.json'), JSON.stringify({ verify: `sh -c 'echo ran >> ${count}'`, verifyDirty: ['*.ts'] }));
-    const env = { CLAUDE_PROJECT_DIR: dir };
-    const stop = () => runHook('verify-on-stop.sh', { stop_hook_active: false }, env).status;
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n'); // uncommitted before the prompt
-    runHook('turn-start.sh', {}, env);
-    expect(stop()).toBe(0);
-    expect(existsSync(count)).toBe(false);
-    runHook('turn-start.sh', {}, env);
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 2;\n'); // this turn changed code
-    expect(stop()).toBe(0);
-    expect(stop()).toBe(0);
-    expect(readFileSync(count, 'utf8').split('ran').length - 1).toBe(1);
-  });
-  it('does not re-run or re-block a failing state', () => {
-    const dir = repo(1);
-    const env = { CLAUDE_PROJECT_DIR: dir };
-    const stop = () => runHook('verify-on-stop.sh', { stop_hook_active: false }, env).status;
-    runHook('turn-start.sh', {}, env);
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
-    expect(stop()).toBe(2);
-    runHook('turn-start.sh', {}, env);
-    expect(stop()).toBe(0);
-    rmSync(join(dir, '.git', 'sdlc-turn-start.hash'));
-    expect(stop()).toBe(0);
-  });
-  it('never loops', () => {
-    const dir = repo(1);
-    writeFileSync(join(dir, 'x.ts'), 'export const x = 1;\n');
-    expect(runHook('verify-on-stop.sh', { stop_hook_active: true }, { CLAUDE_PROJECT_DIR: dir }).status).toBe(0);
-  });
-});
-
 function chainRepo(
   name: string,
   decisions: Record<string, unknown>,
@@ -646,88 +525,7 @@ function chainRepo(
   return [dir, change];
 }
 
-function runChain(repo: string, filePath: string) {
-  return runHook('chain-gate.sh', { tool_input: { file_path: filePath } }, { CLAUDE_PROJECT_DIR: repo });
-}
-
-describe('chain-gate v3', () => {
-  it('refuses spec writes before asks', () => {
-    const [repo, change] = chainRepo('asks', { size: 'M', kind: 'feature', skips: {} }, { asks: false });
-    const r = runChain(repo, `changes/${change}/spec/screens.md`);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('## Asks');
-  });
-  it('refuses facts before design', () => {
-    const [repo, change] = chainRepo('facts', {
-      size: 'M',
-      kind: 'feature',
-      intent: 'skip -- ticket',
-      skips: {},
-    });
-    const r = runChain(repo, `changes/${change}/facts.md`);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('omr-ux:design');
-  });
-  it('refuses plan before validation approval', () => {
-    const [repo, change] = chainRepo(
-      'validation',
-      { size: 'M', kind: 'feature', skips: {} },
-      { designDone: true, validation: '---\ntype: validation\nverdict: not-ready\nstatus: draft\n---\n' },
-    );
-    const r = runChain(repo, `changes/${change}/plan.md`);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('omr-ux:validate spec');
-  });
-  it('allows prototypeDirs before the plan', () => {
-    const [repo] = chainRepo('proto', { size: 'L', kind: 'feature', skips: {} }, { plan: false });
-    expect(runChain(repo, 'proto/draft.ts').status).toBe(0);
-    const r = runChain(repo, 'src/feature.ts');
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('has no plan.md');
-  });
-  it('locks bug tests', () => {
-    let [repo] = chainRepo('lock', { size: 'none', kind: 'bug', skips: {}, testLocked: true });
-    const r = runChain(repo, 'tests/bug.test.ts');
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('fix the code, not the test');
-    [repo] = chainRepo('unlock', {
-      size: 'none',
-      kind: 'bug',
-      skips: {},
-      testLocked: true,
-      testEdit: 'owner OK',
-    });
-    expect(runChain(repo, 'tests/bug.test.ts').status).toBe(0);
-  });
-  it('refuses v3 facts until the intent decision is met', () => {
-    const [repo, change] = chainRepo(
-      'facts-intent',
-      { size: 'M', kind: 'feature', intent: 'interview -- owner', skips: {} },
-      { designDone: true },
-    );
-    const r = runChain(repo, `changes/${change}/facts.md`);
-    expect(r.status).toBe(2);
-    expect(r.stderr).toContain('interview');
-  });
-  it('keeps dot directories exempt', () => {
-    const [repo] = chainRepo('dot-dirs', { size: 'M', kind: 'feature', intent: 'skip -- ticket', skips: {} }, { plan: false });
-    expect(runChain(repo, '.claude/settings.json').status).toBe(0);
-    expect(runChain(repo, 'src/app.ts').status).toBe(2);
-  });
-  it('locks root-level test files', () => {
-    const [repo] = chainRepo('root-lock', {
-      size: 'none',
-      kind: 'bug',
-      intent: 'skip -- t',
-      skips: {},
-      testLocked: true,
-    });
-    expect(runChain(repo, 'app.test.ts').status).toBe(2);
-  });
-  it('does not apply the v3 spec rule to v2 folders', () => {
-    const [repo, change] = chainRepo('v2', { intent: 'skip -- old folder' }, { asks: false });
-    expect(runChain(repo, `changes/${change}/spec/screens.md`).status).toBe(0);
-  });
+describe('change resources', () => {
   it('accepts web links in v3 ask rows', () => {
     const [repo, change] = chainRepo(
       'resource-web',

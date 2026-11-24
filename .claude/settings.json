@@ -1,28 +1,5 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/turn-start.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "command": "i=$(cat); for r in \"$(printf '%s' \"$i\" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"cwd\") or \".\")' 2>/dev/null)\" \"$PWD\" \"$CLAUDE_PROJECT_DIR\"; do r=$(git -C \"$r\" rev-parse --show-toplevel 2>/dev/null) && [ -x \"$r/.claude/hooks/plan-gate.sh\" ] && break; r=; done; [ -n \"$r\" ] || { echo \"plan-gate.sh: no checkout with .claude/hooks/plan-gate.sh at the session cwd\" >&2; exit 1; }; printf '%s' \"$i\" | CLAUDE_PROJECT_DIR=$r exec \"$r/.claude/hooks/plan-gate.sh\"",
-            "timeout": 345600,
-            "type": "command"
-          }
-        ],
-        "matcher": "ExitPlanMode"
-      }
-    ],
     "PostToolUse": [
       {
         "hooks": [
@@ -35,17 +12,6 @@
         "matcher": "Edit|Write"
       }
     ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "command": "bd prime",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
     "PreToolUse": [
       {
         "hooks": [
@@ -56,57 +22,6 @@
           }
         ],
         "matcher": "Bash"
-      },
-      {
-        "hooks": [
-          {
-            "command": "i=$(cat); for r in \"$(printf '%s' \"$i\" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"cwd\") or \".\")' 2>/dev/null)\" \"$PWD\" \"$CLAUDE_PROJECT_DIR\"; do r=$(git -C \"$r\" rev-parse --show-toplevel 2>/dev/null) && [ -x \"$r/.claude/hooks/chain-gate.sh\" ] && break; r=; done; [ -n \"$r\" ] || { echo \"chain-gate.sh: no checkout with .claude/hooks/chain-gate.sh at the session cwd\" >&2; exit 1; }; printf '%s' \"$i\" | CLAUDE_PROJECT_DIR=$r exec \"$r/.claude/hooks/chain-gate.sh\"",
-            "timeout": 5,
-            "type": "command"
-          }
-        ],
-        "matcher": "Edit|Write"
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pr-gate.sh",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "i=$(cat); for r in \"$(printf '%s' \"$i\" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"cwd\") or \".\")' 2>/dev/null)\" \"$PWD\" \"$CLAUDE_PROJECT_DIR\"; do r=$(git -C \"$r\" rev-parse --show-toplevel 2>/dev/null) && [ -x \"$r/.claude/hooks/session-check.sh\" ] && break; r=; done; [ -n \"$r\" ] || { echo \"session-check.sh: no checkout with .claude/hooks/session-check.sh at the session cwd\" >&2; exit 1; }; printf '%s' \"$i\" | CLAUDE_PROJECT_DIR=$r exec \"$r/.claude/hooks/session-check.sh\"",
-            "timeout": 5,
-            "type": "command"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "command": "bd prime",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "i=$(cat); for r in \"$(printf '%s' \"$i\" | python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"cwd\") or \".\")' 2>/dev/null)\" \"$PWD\" \"$CLAUDE_PROJECT_DIR\"; do r=$(git -C \"$r\" rev-parse --show-toplevel 2>/dev/null) && [ -x \"$r/.claude/hooks/verify-on-stop.sh\" ] && break; r=; done; [ -n \"$r\" ] || { echo \"verify-on-stop.sh: no checkout with .claude/hooks/verify-on-stop.sh at the session cwd\" >&2; exit 1; }; printf '%s' \"$i\" | CLAUDE_PROJECT_DIR=$r exec \"$r/.claude/hooks/verify-on-stop.sh\"",
-            "timeout": 300,
-            "type": "command"
-          }
-        ]
       }
     ]
   },

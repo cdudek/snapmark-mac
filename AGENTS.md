@@ -12,6 +12,15 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
+## Git hooks
+
+Install once per clone, worktrees share it: `git config --unset core.hooksPath; npx lefthook install`.
+
+- **pre-commit:** prettier check on the staged files.
+- **pre-push:** lint, typecheck and `tests/sdlc.test.ts`.
+- **CI only:** the build, the app's test scripts, smoke and e2e.
+- Never `--no-verify`.
+
 ## Non-Interactive Shell Commands
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
